@@ -14,40 +14,17 @@ import {
   spawnSync,
 } from "node:child_process";
 
-const packageSubpaths = [
-  "app",
-  "core",
-  "workflow-control-plane",
-  "workflow-control-plane/control-plane",
-  "workflow-control-plane/http",
-  "workflow-control-plane/in-memory-signal-store",
-  "workflow-control-plane/json-trigger-store",
-  "workflow-control-plane/runtime-store-contracts",
-  "workflow-control-plane/runtime-store-conformance",
-  "workflow-control-plane/sqlite-runtime-store",
-  "workflow-control-plane/types",
-  "workflow-control-plane/worker",
-  "distribution",
-  "init/workbench",
-  "agents/runtime",
-  "client-surfaces",
-  "product",
-  "tools/surface",
-  "client",
-  "client/workflow-render",
-  "client/workflow-room",
-  "client/opentui-merman",
-  "client/workflow-tui-test-surface",
-  "client/workflow-tui-shell-test-surface",
-  "react",
-];
+type ExportTarget = {import: string; require?: string; types: string};
 
-const commonJsPackageSubpaths = [
-  "client",
-  "client/workflow-render",
-  "client/workflow-room",
-  "react",
-];
+const packageManifest = JSON.parse(await readFile("package.json", "utf8")) as {
+  exports: Record<string, ExportTarget>;
+};
+const packageSpecifiers = Object.keys(packageManifest.exports).map((subpath) => (
+  subpath === "." ? "@dromio/workflow" : `@dromio/workflow/${subpath.slice(2)}`
+));
+const commonJsPackageSpecifiers = Object.entries(packageManifest.exports)
+  .filter(([, target]) => target.require !== undefined)
+  .map(([subpath]) => `@dromio/workflow/${subpath.slice(2)}`);
 
 const protocolDir = path.resolve("..", "room", "protocol");
 const protocolsDir = path.resolve("..", "protocols");
@@ -132,11 +109,11 @@ try {
   await writeFile(
     path.join(consumerDir, "smoke.mjs"),
     [
-      "const subpaths = " + JSON.stringify(packageSubpaths) + ";",
-      "for (const subpath of subpaths) {",
-      "  await import(`@dromio/workflow/${subpath}`);",
+      "const specifiers = " + JSON.stringify(packageSpecifiers) + ";",
+      "for (const specifier of specifiers) {",
+      "  await import(specifier);",
       "}",
-      "console.log(`imported ${subpaths.length} public subpaths`);",
+      "console.log(`imported ${specifiers.length} public entry points`);",
       "",
     ].join("\n"),
   );
@@ -144,12 +121,11 @@ try {
   await writeFile(
     path.join(consumerDir, "smoke.cjs"),
     [
-      "const subpaths = " + JSON.stringify(commonJsPackageSubpaths) + ";",
-      "for (const subpath of subpaths) {",
-      "  console.log(`requiring ${subpath}`);",
-      "  require(`@dromio/workflow/${subpath}`);",
+      "const specifiers = " + JSON.stringify(commonJsPackageSpecifiers) + ";",
+      "for (const specifier of specifiers) {",
+      "  require(specifier);",
       "}",
-      "console.log(`required ${subpaths.length} public subpaths`);",
+      "console.log(`required ${specifiers.length} public entry points`);",
       "",
     ].join("\n"),
   );
