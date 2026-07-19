@@ -37,10 +37,11 @@ at the application boundary, keeping workflow logic portable.
 
 ## Examples and guides
 
-The [Workflow SDK guide](https://dromio.ai/docs/workflow-sdk) progresses from the
-first typed workflow through composition, human input, models and evaluation,
-events and traces, application surfaces, and current API status. Examples use the
-canonical package root first and introduce subpath APIs only when they are needed.
+The Workflow SDK guide progresses from the first typed workflow through
+composition, human input, models and evaluation, events and traces, application
+surfaces, and current API status. Examples use the canonical package root first
+and introduce subpath APIs only when they are needed. The guide will be linked
+here when the production documentation deployment is public.
 
 ## Develop
 
