@@ -8,6 +8,10 @@ Build typed, durable workflows with one public package: `@dromio/workflow`.
 bun add @dromio/workflow
 ```
 
+Workflow execution currently targets Bun 1.3.14 or newer. Node remains useful
+for TypeScript tooling, but it is not a supported Workflow runtime while the
+control-plane package uses Bun's SQLite driver.
+
 ## First step
 
 ```ts

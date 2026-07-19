@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { canonicalPackageName, packageDirectories } from "./package-closure.js";
 
-type Action = "rehearse" | "publish-next" | "verify-next" | "promote-latest";
+type Action = "rehearse" | "publish-next" | "verify-next" | "repair-next-tags" | "promote-latest";
 type Manifest = {
   integrity: string;
   name: string;
@@ -24,9 +24,11 @@ type PackageJson = {
 };
 
 const root = path.resolve(import.meta.dir, "..");
+const registryAttempts = 24;
+const registryRetryDelayMs = 10_000;
 const action = process.argv[2] as Action | undefined;
-if (!action || !["rehearse", "publish-next", "verify-next", "promote-latest"].includes(action)) {
-  throw new Error("Usage: bun scripts/release.ts <rehearse|publish-next|verify-next|promote-latest>");
+if (!action || !["rehearse", "publish-next", "verify-next", "repair-next-tags", "promote-latest"].includes(action)) {
+  throw new Error("Usage: bun scripts/release.ts <rehearse|publish-next|verify-next|repair-next-tags|promote-latest>");
 }
 
 if (action === "verify-next") {
@@ -70,7 +72,40 @@ if (action === "publish-next") {
       "--provenance",
     ], root);
   }
+  await Promise.all(ordered.map(item => waitForNpmVersion(`${item.name}@${item.version}`, item.version)));
   await verifyPublicPackage(`${canonicalPackageName}@next`);
+  process.exit(0);
+}
+
+if (action === "repair-next-tags") {
+  const packagesWithLatest = new Set<string>();
+  for (const item of ordered) {
+    const nextVersion = npmView(`${item.name}@next`, "version");
+    const latestVersion = npmView(`${item.name}@latest`, "version");
+    if (nextVersion !== item.version || (latestVersion !== undefined && latestVersion !== item.version)) {
+      throw new Error(
+        `Refusing tag repair for ${item.name}: next=${nextVersion || "nothing"}, ` +
+        `latest=${latestVersion || "nothing"}, expected next=${item.version} and latest=${item.version} or nothing.`,
+      );
+    }
+    if (latestVersion === item.version) packagesWithLatest.add(item.name);
+  }
+  for (const item of ordered) {
+    if (packagesWithLatest.has(item.name)) run("npm", ["dist-tag", "rm", item.name, "latest"], root);
+  }
+  for (const item of ordered) {
+    const nextVersion = npmView(`${item.name}@next`, "version");
+    const latestVersion = npmView(`${item.name}@latest`, "version");
+    if (nextVersion !== item.version || latestVersion !== undefined) {
+      throw new Error(
+        `Tag repair verification failed for ${item.name}: next=${nextVersion || "nothing"}, ` +
+        `latest=${latestVersion || "nothing"}.`,
+      );
+    }
+  }
+  console.log(
+    `Removed or confirmed absent the unintended latest tag for ${ordered.length} packages; next remains unchanged.`,
+  );
   process.exit(0);
 }
 
@@ -146,11 +181,13 @@ function npmView(specifier: string, field: string): string | undefined {
 }
 
 async function verifyPublicPackage(specifier: string): Promise<void> {
+  const expectedVersion = await waitForNpmVersion(specifier);
+  const dependencySpecifier = dependencyValueFor(specifier);
   const temporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-"));
   try {
     await writeFile(path.join(temporary, "package.json"), JSON.stringify({
       devDependencies: { "@types/node": "24.13.2", typescript: "5.9.3" },
-      dependencies: { "@dromio/workflow": specifier, zod: "4.4.3" },
+      dependencies: { [canonicalPackageName]: dependencySpecifier, zod: "4.4.3" },
       name: "dromio-workflow-public-verification",
       private: true,
       type: "module",
@@ -160,13 +197,72 @@ async function verifyPublicPackage(specifier: string): Promise<void> {
       compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true, strict: true, target: "ES2022" },
       include: ["workflow.ts"],
     }, null, 2));
-    run("npm", ["install", "--ignore-scripts"], temporary);
+    await installPublicDependencies(temporary);
+    const installedPackage = JSON.parse(
+      await readFile(path.join(temporary, "node_modules", "@dromio", "workflow", "package.json"), "utf8"),
+    ) as { name?: string; version?: string };
+    if (installedPackage.name !== canonicalPackageName || installedPackage.version !== expectedVersion) {
+      throw new Error(
+        `Installed ${installedPackage.name || "unknown package"}@${installedPackage.version || "unknown version"}, ` +
+        `expected ${canonicalPackageName}@${expectedVersion}.`,
+      );
+    }
+    run("npm", ["audit", "--omit=dev", "--audit-level=moderate"], temporary);
     run("node", [path.join(temporary, "node_modules", "typescript", "bin", "tsc"), "-p", "tsconfig.json"], temporary);
-    run("node", ["--experimental-strip-types", "workflow.ts"], temporary);
-    console.log(`Verified clean public consumer for ${specifier}.`);
+    run("bun", ["run", "workflow.ts"], temporary);
+    console.log(`Verified clean public consumer for ${specifier} with the supported Bun runtime.`);
   } finally {
     await rm(temporary, { force: true, recursive: true });
   }
+}
+
+function dependencyValueFor(specifier: string): string {
+  const prefix = `${canonicalPackageName}@`;
+  if (!specifier.startsWith(prefix) || specifier.length === prefix.length) {
+    throw new Error(`Expected a ${canonicalPackageName}@<version-or-tag> specifier, got ${specifier}.`);
+  }
+  return specifier.slice(prefix.length);
+}
+
+async function waitForNpmVersion(specifier: string, expected?: string): Promise<string> {
+  for (let attempt = 1; attempt <= registryAttempts; attempt += 1) {
+    const version = npmView(specifier, "version");
+    if (version && (!expected || version === expected)) return version;
+    if (attempt < registryAttempts) {
+      console.log(
+        `Waiting for npm registry propagation for ${specifier}` +
+        `${expected ? `=${expected}` : ""} (${attempt}/${registryAttempts})...`,
+      );
+      await delay(registryRetryDelayMs);
+    }
+  }
+  throw new Error(
+    `${specifier} did not resolve${expected ? ` to ${expected}` : ""} after ${registryAttempts} registry checks.`,
+  );
+}
+
+async function installPublicDependencies(cwd: string): Promise<void> {
+  for (let attempt = 1; attempt <= registryAttempts; attempt += 1) {
+    const result = spawnSync("npm", ["install", "--ignore-scripts"], { cwd, encoding: "utf8" });
+    if (result.status === 0) {
+      if (result.stdout) process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      return;
+    }
+    const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+    const propagationFailure = /E404|ETARGET|404 Not Found|No matching version/i.test(output);
+    if (!propagationFailure || attempt === registryAttempts) {
+      if (result.stdout) process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      throw new Error(`npm install --ignore-scripts failed in ${cwd}`);
+    }
+    console.log(`Waiting for npm dependency propagation (${attempt}/${registryAttempts})...`);
+    await delay(registryRetryDelayMs);
+  }
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
 function representativeWorkflowSource(): string {

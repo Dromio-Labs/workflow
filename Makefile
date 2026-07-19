@@ -1,4 +1,4 @@
-.PHONY: help setup build check test verify-package local-registry release-rehearse release-verify-next release-publish-next release-promote-latest
+.PHONY: help setup build check test verify-package local-registry release-rehearse release-verify-next release-publish-next release-repair-next-tags release-promote-latest
 
 help:
 	@printf "Dromio Workflow commands:\n"
@@ -8,6 +8,7 @@ help:
 	@printf "  make local-registry  Build local package-registry artifacts for dro\n"
 	@printf "  make release-rehearse  Build and verify the nine-package release without publishing\n"
 	@printf "  make release-verify-next  Verify the public @dromio/workflow@next package\n"
+	@printf "  make release-repair-next-tags  Remove unintended first-release latest tags\n"
 
 setup:
 	@bun install --frozen-lockfile --ignore-scripts
@@ -35,6 +36,9 @@ release-verify-next:
 
 release-publish-next:
 	@bun run release:publish-next
+
+release-repair-next-tags:
+	@bun run release:repair-next-tags
 
 release-promote-latest:
 	@bun run release:promote-latest

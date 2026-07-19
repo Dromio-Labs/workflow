@@ -23,16 +23,31 @@ for (const workflowFile of workflowFiles) {
   if (workflowFile === "release.yml") {
     const publishStart = contents.indexOf("  publish-next:\n");
     const verifyStart = contents.indexOf("  verify-next:\n");
+    const repairStart = contents.indexOf("  repair-next-tags:\n");
+    const promoteStart = contents.indexOf("  promote-latest:\n");
     const publishJob = contents.slice(publishStart, verifyStart);
+    const repairJob = contents.slice(repairStart, promoteStart);
     const oidcGrantCount = contents.match(/^      id-token: write$/gm)?.length ?? 0;
     if (
       publishStart < 0 ||
       verifyStart < 0 ||
+      repairStart < 0 ||
+      promoteStart < 0 ||
       !/^    permissions:\n      contents: read\n      id-token: write$/m.test(publishJob) ||
       oidcGrantCount !== 1
     ) {
       permissionFindings.push(
         "release.yml: only publish-next may grant contents: read and id-token: write for npm provenance",
+      );
+    }
+    if (
+      !/^    environment: npm-prerelease$/m.test(repairJob) ||
+      !/^          DROMIO_RELEASE_CONFIRM: repair-next-tags$/m.test(repairJob) ||
+      !/^          NODE_AUTH_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}$/m.test(repairJob) ||
+      /^    permissions:/m.test(repairJob)
+    ) {
+      permissionFindings.push(
+        "release.yml: repair-next-tags must use the protected prerelease token without an OIDC grant",
       );
     }
   }
