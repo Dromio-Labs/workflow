@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.retention-policy.v1","id":"retention-1","tenantId":"tenant-1","applicationId":"app-1","retainForDays":30,"updatedAt":"2026-01-01T00:00:00Z","updatedBy":{"type":"user","id":"user-1"}}

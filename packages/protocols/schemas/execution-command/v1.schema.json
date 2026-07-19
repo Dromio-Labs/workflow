@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/execution-command/v1.schema.json",
+  "title": "Dromio Execution Command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "commandId", "correlationId", "requestId", "operation", "tenantId", "applicationId", "threadId", "turnId", "turnOrdinal", "generation", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.execution-command.v1" },
+    "commandId": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "operation": { "enum": ["execute_thread_turn", "resume_thread_turn", "cancel_thread_turn", "steer_thread_turn"] },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "turnId": { "type": "string", "minLength": 1 },
+    "turnOrdinal": { "type": "integer", "minimum": 1 },
+    "generation": { "type": "integer", "minimum": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" }
+  }
+}

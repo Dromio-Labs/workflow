@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/approval-resolved/v1.schema.json",
+  "title": "Dromio Approval Resolved Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "approvalId", "roomId", "resolverParticipantId", "decision", "resolvedAt"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.approval-resolved.v1"
+    },
+    "approvalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resolverParticipantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["approved", "rejected", "cancelled"]
+    },
+    "resolutionNote": {
+      "type": "string"
+    },
+    "resolvedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

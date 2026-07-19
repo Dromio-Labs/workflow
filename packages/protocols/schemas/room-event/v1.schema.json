@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/room-event/v1.schema.json",
+  "title": "Dromio Room Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "roomId", "type", "occurredAt", "payload"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.room-event.v1"
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "room.created",
+        "room.started",
+        "room.ended",
+        "participant.joined",
+        "participant.left",
+        "message.appended",
+        "approval.requested",
+        "approval.resolved",
+        "handRaise.opened",
+        "handRaise.resolved",
+        "artifact.proposed",
+        "artifact.approved",
+        "artifact.rejected",
+        "decision.recorded",
+        "workflow.run.linked",
+        "workflow.run.updated",
+        "workflow.event"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

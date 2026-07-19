@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/runtime-event/v1.schema.json",
+  "title": "Dromio Runtime Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "type", "timestamp", "payload"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.runtime-event.v1"
+    },
+    "eventId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "approval.requested",
+        "approval.resolved",
+        "artifact.proposed",
+        "artifact.approved",
+        "artifact.rejected",
+        "tool.started",
+        "tool.completed",
+        "tool.failed",
+        "question.requested",
+        "question.answered",
+        "workflow.event",
+        "workflow.run.started",
+        "workflow.run.progress",
+        "workflow.run.completed",
+        "workflow.run.failed"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "workflowId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stepId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actorId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

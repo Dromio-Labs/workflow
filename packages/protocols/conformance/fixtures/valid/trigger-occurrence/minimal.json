@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.trigger-occurrence.v1","id":"occurrence-1","type":"chat","tenantId":"tenant-1","applicationId":"app-1","triggerId":"chat-default","idempotencyKey":"turn-1","correlationId":"correlation-1","requestId":"request-1","commandId":"command-1","occurredAt":"2026-01-01T00:00:00Z","payload":{"turnId":"turn-1"}}

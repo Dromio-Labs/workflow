@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "dromio.artifact-proposed.v1",
+  "artifactId": "artifact_123",
+  "roomId": "room_123",
+  "workflowId": "workflow_builder",
+  "workflowRunId": "run_123",
+  "proposerParticipantId": "agent_builder",
+  "title": "Workflow release draft",
+  "kind": "json",
+  "summary": "Draft release manifest for review.",
+  "content": {
+    "releaseId": "rel_123"
+  },
+  "proposedAt": "2026-06-18T12:09:00.000Z"
+}
+

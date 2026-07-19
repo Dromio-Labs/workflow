@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-api-capabilities/v1.schema.json",
+  "title": "Dromio Thread API Capabilities v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "apiVersion", "transports", "features", "limits"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.thread-api-capabilities.v1" },
+    "apiVersion": { "const": "v1" },
+    "transports": {
+      "type": "object", "additionalProperties": false, "required": ["http", "sse", "websocket"],
+      "properties": { "http": { "const": true }, "sse": { "const": true }, "websocket": { "type": "boolean" } }
+    },
+    "features": {
+      "type": "object", "additionalProperties": false,
+      "required": ["explicitThreads", "privateUserFeed", "files", "search", "semanticSearch", "steering", "exports", "sharing"],
+      "properties": {
+        "explicitThreads": { "const": true }, "privateUserFeed": { "const": true }, "files": { "type": "boolean" }, "search": { "type": "boolean" }, "semanticSearch": { "type": "boolean" }, "steering": { "type": "boolean" }, "exports": { "const": true }, "sharing": { "const": true }
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "maxFileBytes": { "type": "integer", "minimum": 1 } }
+    }
+  }
+}

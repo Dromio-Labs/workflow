@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://schemas.dromio.dev/file/v1.schema.json", "title": "Dromio File v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "tenantId", "applicationId", "kind", "status", "objectKey", "mediaType", "name", "size", "checksum", "version", "createdBy", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.file.v1" }, "id": { "type": "string", "minLength": 1 }, "tenantId": { "type": "string", "minLength": 1 }, "applicationId": { "type": "string", "minLength": 1 }, "kind": { "enum": ["file", "artifact"] }, "status": { "enum": ["pending_upload", "processing", "ready", "quarantined", "failed", "deleted"] }, "objectKey": { "type": "string", "minLength": 1 }, "mediaType": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 }, "size": { "type": "integer", "minimum": 0 }, "checksum": { "type": "string", "minLength": 1 }, "version": { "type": "integer", "minimum": 1 }, "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "createdAt": { "type": "string", "format": "date-time" }, "metadata": { "type": "object", "additionalProperties": true }
+  }
+}

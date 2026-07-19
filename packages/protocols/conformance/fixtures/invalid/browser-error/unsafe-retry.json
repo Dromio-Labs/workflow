@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.browser-error.v1","requestId":"request-1","operationId":"browser.interaction.click","code":"post-dispatch-uncertain","message":"Outcome is unknown.","phase":"post-dispatch-uncertain","retryable":true}

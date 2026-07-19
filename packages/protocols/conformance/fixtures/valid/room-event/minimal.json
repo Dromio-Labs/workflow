@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "dromio.room-event.v1",
+  "eventId": "room_evt_001",
+  "roomId": "room_123",
+  "type": "handRaise.opened",
+  "occurredAt": "2026-06-18T12:02:01.000Z",
+  "payload": {
+    "handId": "hand_123",
+    "participantId": "agent_builder"
+  }
+}
+

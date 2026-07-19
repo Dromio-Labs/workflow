@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.browser-feature-set.v1","backend":"managed","features":[{"feature":"inspect","status":"supported"},{"feature":"remote","status":"disabled","reason":"Remote attachment is disabled by policy."}],"operationIds":["browser.page.read","browser.page.navigate"]}

@@ -1,0 +1,292 @@
+{
+  "registryVersion": "0.1.0",
+  "schemas": [
+    {
+      "name": "runtime-event",
+      "version": "v1",
+      "path": "runtime-event/v1.schema.json",
+      "id": "https://schemas.dromio.dev/runtime-event/v1.schema.json",
+      "description": "Canonical runtime/workflow event payload."
+    },
+    {
+      "name": "runtime-event-envelope",
+      "version": "v1",
+      "path": "runtime-event-envelope/v1.schema.json",
+      "id": "https://schemas.dromio.dev/runtime-event-envelope/v1.schema.json",
+      "description": "Canonical runtime/workflow event envelope."
+    },
+    {
+      "name": "approval-requested",
+      "version": "v1",
+      "path": "approval-requested/v1.schema.json",
+      "id": "https://schemas.dromio.dev/approval-requested/v1.schema.json",
+      "description": "Approval request event payload."
+    },
+    {
+      "name": "approval-resolved",
+      "version": "v1",
+      "path": "approval-resolved/v1.schema.json",
+      "id": "https://schemas.dromio.dev/approval-resolved/v1.schema.json",
+      "description": "Approval resolution event payload."
+    },
+    {
+      "name": "question-requested",
+      "version": "v1",
+      "path": "question-requested/v1.schema.json",
+      "id": "https://schemas.dromio.dev/question-requested/v1.schema.json",
+      "description": "Human question request event payload."
+    },
+    {
+      "name": "question-answered",
+      "version": "v1",
+      "path": "question-answered/v1.schema.json",
+      "id": "https://schemas.dromio.dev/question-answered/v1.schema.json",
+      "description": "Human question answer event payload."
+    },
+    {
+      "name": "artifact-proposed",
+      "version": "v1",
+      "path": "artifact-proposed/v1.schema.json",
+      "id": "https://schemas.dromio.dev/artifact-proposed/v1.schema.json",
+      "description": "Artifact proposed event payload."
+    },
+    {
+      "name": "artifact-decision",
+      "version": "v1",
+      "path": "artifact-decision/v1.schema.json",
+      "id": "https://schemas.dromio.dev/artifact-decision/v1.schema.json",
+      "description": "Artifact approval or rejection event payload."
+    },
+    {
+      "name": "workflow-run-event",
+      "version": "v1",
+      "path": "workflow-run-event/v1.schema.json",
+      "id": "https://schemas.dromio.dev/workflow-run-event/v1.schema.json",
+      "description": "Workflow run lifecycle, progress, and trace event payload."
+    },
+    {
+      "name": "room-command",
+      "version": "v1",
+      "path": "room-command/v1.schema.json",
+      "id": "https://schemas.dromio.dev/room-command/v1.schema.json",
+      "description": "Generic room command envelope."
+    },
+    {
+      "name": "room-event",
+      "version": "v1",
+      "path": "room-event/v1.schema.json",
+      "id": "https://schemas.dromio.dev/room-event/v1.schema.json",
+      "description": "Generic room event envelope."
+    },
+    {
+      "name": "room-snapshot",
+      "version": "v1",
+      "path": "room-snapshot/v1.schema.json",
+      "id": "https://schemas.dromio.dev/room-snapshot/v1.schema.json",
+      "description": "Projected generic room state."
+    },
+    {
+      "name": "transport-envelope",
+      "version": "v1",
+      "path": "transport-envelope/v1.schema.json",
+      "id": "https://schemas.dromio.dev/transport-envelope/v1.schema.json",
+      "description": "Transport binding envelope for protocol messages."
+    },
+    {
+      "name": "actor-context",
+      "version": "v1",
+      "path": "actor-context/v1.schema.json",
+      "id": "https://schemas.dromio.dev/actor-context/v1.schema.json",
+      "description": "Trusted authenticated actor context supplied by a host."
+    },
+    {
+      "name": "api-error",
+      "version": "v1",
+      "path": "api-error/v1.schema.json",
+      "id": "https://schemas.dromio.dev/api-error/v1.schema.json",
+      "description": "Typed public API error envelope."
+    },
+    {
+      "name": "thread",
+      "version": "v1",
+      "path": "thread/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread/v1.schema.json",
+      "description": "Tenant and application owned thread resource."
+    },
+    {
+      "name": "thread-item",
+      "version": "v1",
+      "path": "thread-item/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread-item/v1.schema.json",
+      "description": "Ordered user-visible thread item."
+    },
+    {
+      "name": "turn",
+      "version": "v1",
+      "path": "turn/v1.schema.json",
+      "id": "https://schemas.dromio.dev/turn/v1.schema.json",
+      "description": "Durable conversational turn state."
+    },
+    {
+      "name": "interaction-request",
+      "version": "v1",
+      "path": "interaction-request/v1.schema.json",
+      "id": "https://schemas.dromio.dev/interaction-request/v1.schema.json",
+      "description": "Durable approval, question, or form request."
+    },
+    {
+      "name": "file",
+      "version": "v1",
+      "path": "file/v1.schema.json",
+      "id": "https://schemas.dromio.dev/file/v1.schema.json",
+      "description": "File or generated artifact metadata resource."
+    },
+    {
+      "name": "context-snapshot",
+      "version": "v1",
+      "path": "context-snapshot/v1.schema.json",
+      "id": "https://schemas.dromio.dev/context-snapshot/v1.schema.json",
+      "description": "Immutable provider-neutral model context snapshot."
+    },
+    {
+      "name": "context-summary",
+      "version": "v1",
+      "path": "context-summary/v1.schema.json",
+      "id": "https://schemas.dromio.dev/context-summary/v1.schema.json",
+      "description": "Derived compaction summary with source provenance."
+    },
+    {
+      "name": "thread-access-grant",
+      "version": "v1",
+      "path": "thread-access-grant/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread-access-grant/v1.schema.json",
+      "description": "Thread participant or share capability grant."
+    },
+    {
+      "name": "user-thread-state",
+      "version": "v1",
+      "path": "user-thread-state/v1.schema.json",
+      "id": "https://schemas.dromio.dev/user-thread-state/v1.schema.json",
+      "description": "Private per-user thread presentation state."
+    },
+    {
+      "name": "thread-export",
+      "version": "v1",
+      "path": "thread-export/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread-export/v1.schema.json",
+      "description": "Portable thread export job."
+    },
+    {
+      "name": "usage-record",
+      "version": "v1",
+      "path": "usage-record/v1.schema.json",
+      "id": "https://schemas.dromio.dev/usage-record/v1.schema.json",
+      "description": "Normalized immutable execution usage ledger record."
+    },
+    {
+      "name": "audit-record",
+      "version": "v1",
+      "path": "audit-record/v1.schema.json",
+      "id": "https://schemas.dromio.dev/audit-record/v1.schema.json",
+      "description": "Content-minimized governed action audit record."
+    },
+    {
+      "name": "thread-command",
+      "version": "v1",
+      "path": "thread-command/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread-command/v1.schema.json",
+      "description": "Transport-neutral Thread Service command."
+    },
+    {
+      "name": "thread-event",
+      "version": "v1",
+      "path": "thread-event/v1.schema.json",
+      "id": "https://schemas.dromio.dev/thread-event/v1.schema.json",
+      "description": "Sequenced application and thread synchronization event."
+    },
+    {
+      "name": "execution-command",
+      "version": "v1",
+      "path": "execution-command/v1.schema.json",
+      "id": "https://schemas.dromio.dev/execution-command/v1.schema.json",
+      "description": "Idempotent command sent to the execution system."
+    },
+    {
+      "name": "trigger-occurrence",
+      "version": "v1",
+      "path": "trigger-occurrence/v1.schema.json",
+      "id": "https://schemas.dromio.dev/trigger-occurrence/v1.schema.json",
+      "description": "Normalized occurrence from a chat, manual, schedule, webhook, or event trigger."
+    },
+    {
+      "name": "command-receipt",
+      "version": "v1",
+      "path": "command-receipt/v1.schema.json",
+      "id": "https://schemas.dromio.dev/command-receipt/v1.schema.json",
+      "description": "Mutation receipt with synchronization cursors."
+    },
+    {
+      "name": "thread-share-link", "version": "v1", "path": "thread-share-link/v1.schema.json", "id": "https://schemas.dromio.dev/thread-share-link/v1.schema.json", "description": "Revocable capability link for thread access."
+    },
+    {
+      "name": "thread-draft", "version": "v1", "path": "thread-draft/v1.schema.json", "id": "https://schemas.dromio.dev/thread-draft/v1.schema.json", "description": "Private per-user unsent thread content."
+    },
+    {
+      "name": "retention-policy", "version": "v1", "path": "retention-policy/v1.schema.json", "id": "https://schemas.dromio.dev/retention-policy/v1.schema.json", "description": "Application-scoped retention lifecycle policy."
+    },
+    {
+      "name": "legal-hold", "version": "v1", "path": "legal-hold/v1.schema.json", "id": "https://schemas.dromio.dev/legal-hold/v1.schema.json", "description": "Thread deletion and purge hold."
+    },
+    {
+      "name": "purge-receipt", "version": "v1", "path": "purge-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/purge-receipt/v1.schema.json", "description": "Verifiable record of physical deletion and propagation."
+    },
+    {
+      "name": "thread-authority-receipt", "version": "v1", "path": "thread-authority-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/thread-authority-receipt/v1.schema.json", "description": "Single-writer authority activation after migration."
+    },
+    {
+      "name": "message-revision", "version": "v1", "path": "message-revision/v1.schema.json", "id": "https://schemas.dromio.dev/message-revision/v1.schema.json", "description": "Immutable prior version of a thread message."
+    },
+    {
+      "name": "user-event", "version": "v1", "path": "user-event/v1.schema.json", "id": "https://schemas.dromio.dev/user-event/v1.schema.json", "description": "Private per-user application synchronization event."
+    },
+    {
+      "name": "thread-api-capabilities", "version": "v1", "path": "thread-api-capabilities/v1.schema.json", "id": "https://schemas.dromio.dev/thread-api-capabilities/v1.schema.json", "description": "Discoverable public Thread API transport, feature, and limit capabilities."
+    },
+    {
+      "name": "file-upload", "version": "v1", "path": "file-upload/v1.schema.json", "id": "https://schemas.dromio.dev/file-upload/v1.schema.json", "description": "Durable multipart file upload manifest."
+    },
+    {
+      "name": "file-reference", "version": "v1", "path": "file-reference/v1.schema.json", "id": "https://schemas.dromio.dev/file-reference/v1.schema.json", "description": "Thread-to-file shared reference used for access and cleanup."
+    },
+    {
+      "name": "backup-purge-ledger-entry", "version": "v1", "path": "backup-purge-ledger-entry/v1.schema.json", "id": "https://schemas.dromio.dev/backup-purge-ledger-entry/v1.schema.json", "description": "External deletion ledger entry enforced against restored backups."
+    },
+    {
+      "name": "restore-purge-receipt", "version": "v1", "path": "restore-purge-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/restore-purge-receipt/v1.schema.json", "description": "Proof that a restored backup was re-purged from the external ledger."
+    },
+    {
+      "name": "resource-provenance", "version": "v1", "path": "resource-provenance/v1.schema.json", "id": "https://schemas.dromio.dev/resource-provenance/v1.schema.json", "description": "Normalized lineage linking resources to requests, commands, events, turns, runs, and attempts."
+    },
+    {
+      "name": "legacy-migration-report", "version": "v1", "path": "legacy-migration-report/v1.schema.json", "id": "https://schemas.dromio.dev/legacy-migration-report/v1.schema.json", "description": "Stage, verification, reference, sensitive-field, and authority evidence for a legacy import."
+    },
+    {
+      "name": "browser-operation", "version": "v1", "path": "browser-operation/v1.schema.json", "id": "https://schemas.dromio.dev/browser-operation/v1.schema.json", "description": "Scoped vendor-neutral browser operation envelope."
+    },
+    {
+      "name": "browser-result", "version": "v1", "path": "browser-result/v1.schema.json", "id": "https://schemas.dromio.dev/browser-result/v1.schema.json", "description": "Browser operation result with scoped artifact references."
+    },
+    {
+      "name": "browser-error", "version": "v1", "path": "browser-error/v1.schema.json", "id": "https://schemas.dromio.dev/browser-error/v1.schema.json", "description": "Typed browser failure with dispatch phase and retry safety."
+    },
+    {
+      "name": "browser-event", "version": "v1", "path": "browser-event/v1.schema.json", "id": "https://schemas.dromio.dev/browser-event/v1.schema.json", "description": "Scoped and bounded browser lifecycle event."
+    },
+    {
+      "name": "browser-policy", "version": "v1", "path": "browser-policy/v1.schema.json", "id": "https://schemas.dromio.dev/browser-policy/v1.schema.json", "description": "Feature, approval, origin, and resource limits for browser operations."
+    },
+    {
+      "name": "browser-feature-set", "version": "v1", "path": "browser-feature-set/v1.schema.json", "id": "https://schemas.dromio.dev/browser-feature-set/v1.schema.json", "description": "Backend-aware browser capability discovery without provider internals."
+    }
+  ]
+}

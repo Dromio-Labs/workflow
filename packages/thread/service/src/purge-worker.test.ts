@@ -1,0 +1,21 @@
+import { expect, test } from "bun:test";
+import type { DromioActorContextV1 } from "@dromio/protocols";
+import { MemoryThreadStore } from "./memory-store.js";
+import { ThreadService } from "./service.js";
+import { ThreadPurgePropagationWorker } from "./purge-worker.js";
+
+test("purge propagation reaches every configured derived-state boundary once", async () => { const actor: DromioActorContextV1 = { schemaVersion: "dromio.actor-context.v1", subject: { type: "user", id: "owner" }, tenantId: "tenant-1", applicationId: "app-1", roles: ["owner"], groupIds: [] }; const store = new MemoryThreadStore(); const service = new ThreadService({ store }); const thread = (await service.createThread({ actor, commandId: "create" })).resource; await service.purgeThread({ actor, commandId: "purge" }, thread.id); const calls: string[] = []; const worker = new ThreadPurgePropagationWorker({ store, ports: { context: { purgeThread: async () => { calls.push("context"); } }, search: { purgeThread: async () => { calls.push("search"); } }, files: { purgeThread: async () => { calls.push("files"); } }, execution: { purgeThread: async () => { calls.push("execution"); } }, cache: { purgeThread: async () => { calls.push("cache"); } } } }); expect((await service.getPurgeReceipt({ actor, commandId: "pending" }, thread.id))?.status).toBe("pending"); expect(await worker.dispatchPending()).toBe(1); expect(await worker.dispatchPending()).toBe(0); expect(calls.sort()).toEqual(["cache", "context", "execution", "files", "search"]); expect(await service.getPurgeReceipt({ actor, commandId: "complete" }, thread.id)).toMatchObject({ status: "completed", propagation: { context: { status: "completed" }, search: { status: "completed" }, files: { status: "completed" }, execution: { status: "completed" }, cache: { status: "completed" } } }); });
+
+test("deletion durably requests purge before derived-state propagation", async () => { const actor: DromioActorContextV1 = { schemaVersion: "dromio.actor-context.v1", subject: { type: "user", id: "owner" }, tenantId: "tenant-1", applicationId: "app-1", roles: ["owner"], groupIds: [] }; const store = new MemoryThreadStore(); const service = new ThreadService({ store }); const thread = (await service.createThread({ actor, commandId: "create" })).resource; await service.deleteThread({ actor, commandId: "delete" }, thread.id); const worker = new ThreadPurgePropagationWorker({ store, service, ports: {} }); expect(await worker.dispatchPending()).toBe(1); expect(await service.getPurgeReceipt({ actor, commandId: "pending-receipt" }, thread.id)).toMatchObject({ threadId: thread.id, status: "pending" }); expect(await worker.dispatchPending()).toBe(1); expect(await service.getPurgeReceipt({ actor, commandId: "receipt" }, thread.id)).toMatchObject({ threadId: thread.id, status: "completed", propagation: { context: { status: "not_configured" } } }); });
+
+test("persists per-target failure and retries only unfinished purge targets", async () => {
+  const actor: DromioActorContextV1 = { schemaVersion: "dromio.actor-context.v1", subject: { type: "user", id: "owner" }, tenantId: "tenant-1", applicationId: "app-1", roles: ["owner"], groupIds: [] };
+  const store = new MemoryThreadStore(); const service = new ThreadService({ store }); const thread = (await service.createThread({ actor, commandId: "create" })).resource; await service.purgeThread({ actor, commandId: "purge" }, thread.id);
+  let searchAttempts = 0; let contextAttempts = 0;
+  const worker = new ThreadPurgePropagationWorker({ store, ports: { context: { purgeThread: async () => { contextAttempts += 1; } }, search: { purgeThread: async () => { searchAttempts += 1; if (searchAttempts === 1) throw new Error("search unavailable"); } } } });
+  expect(worker.dispatchPending()).rejects.toThrow("search unavailable");
+  expect(await service.getPurgeReceipt({ actor, commandId: "failed" }, thread.id)).toMatchObject({ status: "pending", propagation: { context: { status: "completed" }, search: { status: "failed" } } });
+  expect(await worker.dispatchPending()).toBe(1);
+  expect(contextAttempts).toBe(1); expect(searchAttempts).toBe(2);
+  expect((await service.getPurgeReceipt({ actor, commandId: "retried" }, thread.id))?.status).toBe("completed");
+});

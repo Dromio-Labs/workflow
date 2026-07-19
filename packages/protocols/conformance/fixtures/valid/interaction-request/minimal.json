@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.interaction-request.v1","id":"interaction-1","threadId":"thread-1","turnId":"turn-1","itemId":"item-1","kind":"approval","status":"pending","requestedAt":"2026-01-01T00:00:00Z","version":1,"operation":"shell.exec","toolVersion":"1","argumentsDigest":"sha256:abc","requestedPermissions":["tool:shell.exec"]}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "dromio.artifact-decision.v1",
+  "artifactId": "artifact_123",
+  "roomId": "room_123",
+  "deciderParticipantId": "human_owner",
+  "decision": "parked",
+  "decidedAt": "2026-06-18T12:10:00.000Z"
+}
+

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-export/v1.schema.json",
+  "title": "Dromio Thread Export v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "threadId", "throughSequence", "format", "includeFiles", "includeAudit", "status", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.thread-export.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "throughSequence": { "type": "integer", "minimum": 0 },
+    "format": { "enum": ["dromio-json", "jsonl", "html"] },
+    "includeFiles": { "type": "boolean" },
+    "includeAudit": { "type": "boolean" },
+    "status": { "enum": ["queued", "running", "ready", "failed", "expired"] },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "artifactId": { "type": "string", "minLength": 1 },
+    "artifactChecksum": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "artifactSize": { "type": "integer", "minimum": 0 },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" }
+  }
+}

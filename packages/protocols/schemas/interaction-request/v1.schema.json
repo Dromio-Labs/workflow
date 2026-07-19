@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/interaction-request/v1.schema.json",
+  "title": "Dromio Interaction Request v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "threadId", "turnId", "itemId", "kind", "status", "requestedAt", "version"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.interaction-request.v1" },
+    "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "turnId": { "type": "string", "minLength": 1 }, "itemId": { "type": "string", "minLength": 1 }, "kind": { "enum": ["approval", "question", "form"] }, "status": { "enum": ["pending", "resolved", "expired", "cancelled"] }, "requestedAt": { "type": "string", "format": "date-time" }, "expiresAt": { "type": "string", "format": "date-time" }, "resolvedAt": { "type": "string", "format": "date-time" }, "resolvedBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "version": { "type": "integer", "minimum": 1 },
+    "operation": { "type": "string", "minLength": 1 }, "toolVersion": { "type": "string", "minLength": 1 }, "capabilityId": { "type": "string", "minLength": 1 }, "argumentsDigest": { "type": "string", "minLength": 1 }, "risk": { "type": "string" }, "requestedPermissions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }, "decision": { "enum": ["approved", "denied"] },
+    "prompt": { "type": "string", "minLength": 1 }, "answerSchema": { "type": "object", "additionalProperties": true }, "answer": true
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "approval" } } }, "then": { "required": ["operation", "toolVersion", "argumentsDigest", "requestedPermissions"], "properties": { "operation": true, "toolVersion": true, "capabilityId": true, "argumentsDigest": true, "requestedPermissions": true } } },
+    { "if": { "properties": { "kind": { "enum": ["question", "form"] } } }, "then": { "required": ["prompt", "answerSchema"], "properties": { "prompt": true, "answerSchema": true } } }
+  ]
+}

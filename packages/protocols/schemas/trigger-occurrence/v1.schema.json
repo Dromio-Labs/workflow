@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/trigger-occurrence/v1.schema.json",
+  "title": "Dromio Trigger Occurrence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "type", "tenantId", "applicationId", "triggerId", "idempotencyKey", "correlationId", "requestId", "commandId", "occurredAt", "payload"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.trigger-occurrence.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "type": { "enum": ["chat", "manual", "schedule", "webhook", "event"] },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "triggerId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "commandId": { "type": "string", "minLength": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/workflow-run-event/v1.schema.json",
+  "title": "Dromio Workflow Run Event Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "workflowId", "runId", "type", "timestamp"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.workflow-run-event.v1"
+    },
+    "workflowId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": ["workflow.run.started", "workflow.run.progress", "workflow.run.completed", "workflow.run.failed", "workflow.event"]
+    },
+    "stepId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "message": {
+      "type": "string"
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "detail": true,
+    "trace": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
+

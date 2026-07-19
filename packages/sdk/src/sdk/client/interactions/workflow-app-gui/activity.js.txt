@@ -1,0 +1,276 @@
+import { activateInspectableJson, inspectableJson } from "/json.js";
+
+const previewLimit = 240;
+const manuallyOpenItems = new Set();
+
+export function renderWorkflowActivity(events, status, error) {
+  const section = element("section", "run-activity-panel");
+  const header = element("div", "activity-panel-header");
+  header.append(
+    element("h3", "", "Activity"),
+    element("span", "activity-count", `${semanticEventCount(events)} events`),
+  );
+  section.append(header);
+  if (error) section.append(element("div", "activity-error", error));
+  const activity = projectActivity(events);
+  if (activity.roots.length === 0) {
+    section.append(element("div", "activity-empty", status === "running" ? "Starting trigger…" : "No run activity yet."));
+    return section;
+  }
+  const list = element("div", "activity-list");
+  list.append(...activity.roots.map((item) => activityTreeElement(item, activity.focusKey)));
+  section.append(list);
+  return section;
+}
+
+function projectActivity(events) {
+  const items = [];
+  const active = new Map();
+  let focusKey;
+  const runStartedAt = timestampValue(events[0]?.timestamp) || Date.now();
+  for (const event of events) {
+    if (event.type === "model.response.delta") {
+      const item = active.get(modelKey(event));
+      const delta = detailString(event, "delta");
+      if (item && delta) item.preview = sanitize(`${item.preview}${delta}`).slice(0, previewLimit);
+      continue;
+    }
+    const key = activityKey(event);
+    const terminal = isTerminalEvent(event.type);
+    if (terminal) manuallyOpenItems.delete(key);
+    const current = terminal ? active.get(key) : undefined;
+    if (current) {
+      current.active = false;
+      current.duration = durationLabel(current.startedAt, timestampValue(event.timestamp));
+      current.event = event;
+      current.messages = uniqueMessages([...current.messages, event.message]);
+      current.status = eventStatus(event.type);
+      active.delete(key);
+      if (event.type.endsWith(".failed")) focusKey = key;
+      else if (focusKey === key) focusKey = undefined;
+      continue;
+    }
+    const startedAt = timestampValue(event.timestamp) || runStartedAt;
+    const lifecycle = isLifecycleStart(event.type);
+    const itemKey = lifecycle ? key : `${key}:${event.type}:${event.index ?? items.length}`;
+    const item = {
+      active: lifecycle,
+      children: [],
+      duration: terminal ? elapsedLabel(runStartedAt, startedAt) : undefined,
+      event,
+      key: itemKey,
+      label: eventPhase(event.type),
+      lifecycle,
+      messages: uniqueMessages([event.message]),
+      parentSpanId: event.trace?.parentSpanId,
+      preview: "",
+      related: [],
+      spanId: event.trace?.spanId,
+      startedAt,
+      status: eventStatus(event.type),
+    };
+    items.push(item);
+    if (lifecycle) {
+      active.set(key, item);
+      focusKey = key;
+    }
+    if (event.type === "model.request.started") active.set(modelKey(event), item);
+    if (item.status === "waiting" || item.status === "error") focusKey = itemKey;
+  }
+  const now = Date.now();
+  for (const item of active.values()) {
+    item.duration = durationLabel(item.startedAt, now);
+  }
+  return { focusKey, roots: activityHierarchy(items) };
+}
+
+function activityHierarchy(items) {
+  const ownerBySpan = new Map();
+  for (const item of items) {
+    if (item.lifecycle && item.spanId) ownerBySpan.set(item.spanId, item);
+  }
+  const roots = [];
+  for (const item of items) {
+    const sameSpanOwner = item.spanId ? ownerBySpan.get(item.spanId) : undefined;
+    if (sameSpanOwner && sameSpanOwner !== item && !item.lifecycle && item.status !== "waiting" && item.status !== "error") {
+      sameSpanOwner.related.push(item);
+      continue;
+    }
+    const parent = sameSpanOwner && sameSpanOwner !== item
+      ? sameSpanOwner
+      : item.parentSpanId ? ownerBySpan.get(item.parentSpanId) : undefined;
+    if (parent && parent !== item) parent.children.push(item);
+    else roots.push(item);
+  }
+  return roots;
+}
+
+function activityTreeElement(item, focusKey) {
+  const node = element("div", "activity-tree-node");
+  node.append(activityElement(item, focusKey));
+  if (item.children.length) {
+    const children = element("div", "activity-children");
+    children.append(...item.children.map((child) => activityTreeElement(child, focusKey)));
+    node.append(children);
+  }
+  return node;
+}
+
+function activityElement(item, focusKey) {
+  const details = element("details", "activity-item");
+  details.dataset.active = String(item.active);
+  details.dataset.activityKey = item.key;
+  details.dataset.focus = String(item.key === focusKey);
+  details.dataset.status = item.status;
+  const shouldOpen = item.key === focusKey || manuallyOpenItems.has(item.key);
+  const summary = element("summary", "activity-summary");
+  const title = element("span", "activity-title", item.label);
+  if (item.duration) title.append(document.createTextNode(" "), element("span", "activity-duration", item.duration));
+  summary.append(
+    element("span", "activity-status-dot"),
+    title,
+    chevron(),
+  );
+  const body = element("div", "activity-body");
+  for (const message of item.messages) body.append(element("p", "activity-message", message));
+  if (item.related.length) {
+    const related = element("div", "activity-related");
+    for (const event of item.related) {
+      const row = element("div", "activity-related-row");
+      row.append(
+        element("span", "activity-related-phase", event.label),
+        element("span", "activity-related-message", event.messages[0] || event.event.type),
+      );
+      related.append(row);
+    }
+    body.append(related);
+  }
+  if (item.preview || (item.active && item.label === "Model")) {
+    const preview = element("div", "activity-preview", item.preview);
+    preview.dataset.activityPreview = item.key;
+    body.append(preview);
+  }
+  const metadata = element("dl", "activity-metadata");
+  appendMetadata(metadata, "Event", item.event.type);
+  appendMetadata(metadata, "Step", item.event.stepId);
+  appendMetadata(metadata, "Trace", item.event.trace?.traceId);
+  appendMetadata(metadata, "Span", item.event.trace?.spanId);
+  body.append(metadata);
+  if (item.event.detail !== undefined) body.append(inspectableJson(item.event.detail));
+  details.append(summary, body);
+  let automaticToggle = shouldOpen;
+  details.addEventListener("toggle", () => {
+    if (automaticToggle) {
+      automaticToggle = false;
+      if (details.open) activateInspectableJson(details);
+      return;
+    }
+    if (details.open) {
+      if (!item.active) manuallyOpenItems.add(item.key);
+      activateInspectableJson(details);
+    } else if (!item.active) {
+      manuallyOpenItems.delete(item.key);
+    }
+  });
+  if (shouldOpen) {
+    details.open = true;
+    setTimeout(() => activateInspectableJson(details), 0);
+  }
+  return details;
+}
+
+function chevron() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "activity-chevron");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", "m4 6 4 4 4-4");
+  svg.append(path);
+  return svg;
+}
+
+function activityKey(event) {
+  if (event.type.startsWith("model.")) return modelKey(event);
+  const branch = detailString(event, "branchId") || detailString(event, "branch") || "";
+  return `${eventPhase(event.type)}:${event.trace?.spanId || event.stepId || event.runId || "workflow"}:${branch}`;
+}
+
+function appendMetadata(list, label, value) {
+  if (!value) return;
+  list.append(element("dt", "", label), element("dd", "", String(value)));
+}
+
+function semanticEventCount(events) {
+  return events.filter((event) => event.type !== "model.response.delta").length;
+}
+
+function modelKey(event) {
+  return event.trace?.spanId || `${event.stepId || "workflow"}:model`;
+}
+
+function detailString(event, key) {
+  const detail = event.detail;
+  return detail && typeof detail === "object" && !Array.isArray(detail) && typeof detail[key] === "string"
+    ? detail[key]
+    : undefined;
+}
+
+function uniqueMessages(messages) {
+  return [...new Set(messages.filter((message) => typeof message === "string" && message.trim()))];
+}
+
+function sanitize(value) {
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]+/g, " ").replace(/\s+/g, " ").trimStart();
+}
+
+function timestampValue(timestamp) {
+  return Date.parse(timestamp || "") || 0;
+}
+
+function durationLabel(startedAt, endedAt) {
+  const elapsed = Math.max(0, endedAt - startedAt);
+  if (elapsed < 1000) return `for ${elapsed}ms`;
+  return `for ${(elapsed / 1000).toFixed(elapsed >= 10_000 ? 0 : 1)}s`;
+}
+
+function elapsedLabel(startedAt, timestamp) {
+  const elapsed = Math.max(0, timestamp - startedAt);
+  if (elapsed < 1000) return `at ${elapsed}ms`;
+  return `at ${(elapsed / 1000).toFixed(elapsed >= 10_000 ? 0 : 1)}s`;
+}
+
+function isLifecycleStart(type) {
+  return type.endsWith(".started") || type.endsWith(".joining");
+}
+
+function isTerminalEvent(type) {
+  return type.endsWith(".completed") || type.endsWith(".failed") || type.endsWith(".answered");
+}
+
+function eventPhase(type) {
+  if (type.startsWith("model.")) return "Model";
+  if (type.startsWith("evaluation.")) return "Evaluation";
+  if (type.startsWith("score.")) return "Gate";
+  if (type.startsWith("operation.") || type === "output.parsed") return "Operation";
+  if (type.startsWith("fork.")) return type.startsWith("fork.branch.") ? "Branch" : "Fork";
+  if (type.startsWith("join.")) return "Join";
+  if (type.startsWith("question.")) return "Question";
+  if (type.startsWith("step.")) return "Step";
+  if (type.startsWith("run.")) return "Run";
+  return type.split(".")[0]?.replace(/^./, (value) => value.toUpperCase()) || "Event";
+}
+
+function eventStatus(type) {
+  if (type.endsWith(".failed")) return "error";
+  if (type.endsWith(".completed") || type.endsWith(".answered")) return "ok";
+  if (type.endsWith(".waiting") || type.endsWith(".requested") || type.endsWith(".retrying")) return "waiting";
+  return "running";
+}
+
+function element(name, className = "", text = "") {
+  const node = document.createElement(name);
+  if (className) node.className = className;
+  node.textContent = text;
+  return node;
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/approval-requested/v1.schema.json",
+  "title": "Dromio Approval Requested Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "approvalId", "roomId", "requesterParticipantId", "title", "summary", "createdAt"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.approval-requested.v1"
+    },
+    "approvalId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflowRunId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requesterParticipantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approverParticipantIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

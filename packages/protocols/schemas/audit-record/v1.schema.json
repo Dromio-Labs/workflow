@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/audit-record/v1.schema.json",
+  "title": "Dromio Audit Record v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "tenantId", "applicationId", "actor", "action", "target", "outcome", "correlationId", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.audit-record.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "actor": { "$ref": "#/$defs/actor" },
+    "action": { "type": "string", "minLength": 1 },
+    "target": { "$ref": "#/$defs/target" },
+    "outcome": { "enum": ["allowed", "denied", "failed"] },
+    "reasonCode": { "type": "string" },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "actor": { "type": "object", "additionalProperties": false, "required": ["type", "id"], "properties": { "type": { "enum": ["user", "service", "system", "share_link"] }, "id": { "type": "string", "minLength": 1 }, "displayName": { "type": "string" } } },
+    "target": { "type": "object", "additionalProperties": false, "required": ["type", "id"], "properties": { "type": { "type": "string", "minLength": 1 }, "id": { "type": "string", "minLength": 1 } } }
+  }
+}

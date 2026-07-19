@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/room-command/v1.schema.json",
+  "title": "Dromio Room Command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "commandId", "roomId", "name", "issuedBy", "issuedAt", "payload"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.room-command.v1"
+    },
+    "commandId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "enum": [
+        "room.create",
+        "room.join",
+        "room.leave",
+        "room.appendMessage",
+        "room.inviteAgent",
+        "room.raiseHand",
+        "room.resolveHand",
+        "room.proposeArtifact",
+        "room.decideArtifact",
+        "room.recordDecision",
+        "room.linkWorkflowRun",
+        "room.applyWorkflowEvent"
+      ]
+    },
+    "issuedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

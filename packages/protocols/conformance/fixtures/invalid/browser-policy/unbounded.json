@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.browser-policy.v1","enabledFeatures":["inspect"],"defaultMode":"automatic","operations":[],"limits":{"maxSessions":0,"maxTabsPerSession":0,"maxArtifactBytes":0,"maxEventRecords":0}}

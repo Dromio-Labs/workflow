@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/question-answered/v1.schema.json",
+  "title": "Dromio Question Answered Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "questionId", "roomId", "answererParticipantId", "answer", "answeredAt"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.question-answered.v1"
+    },
+    "questionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "answererParticipantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "answeredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

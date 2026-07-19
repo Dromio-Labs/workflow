@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "dromio.runtime-event-envelope.v1",
+  "id": "evt_001",
+  "source": "dromio-platform",
+  "subject": "room:room_123",
+  "time": "2026-06-18T12:00:00.000Z",
+  "data": {}
+}
+

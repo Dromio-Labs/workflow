@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "dromio.runtime-event.v1",
+  "eventId": "runtime_evt_001",
+  "type": "workflow.run.progress",
+  "timestamp": "2026-06-18T12:06:00.000Z",
+  "workflowId": "workflow_builder",
+  "runId": "run_123",
+  "payload": {
+    "message": "Drafting schemas"
+  }
+}
+

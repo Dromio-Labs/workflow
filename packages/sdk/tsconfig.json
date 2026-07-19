@@ -1,0 +1,119 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dromio/workflow": [
+        "src/sdk/index.ts"
+      ],
+      "@dromio/workflow/app": [
+        "src/sdk/client/interactions/workflow-app.ts"
+      ],
+      "@dromio/workflow/client": [
+        "src/sdk/client/index.ts"
+      ],
+      "@dromio/workflow/client-surfaces": [
+        "src/sdk/client-surfaces/index.ts"
+      ],
+      "@dromio/workflow/client/opentui-merman": [
+        "src/sdk/client/interactions/workflow-opentui-merman-renderer.ts"
+      ],
+      "@dromio/workflow/client/workflow-tui-test-surface": [
+        "src/sdk/client/workflow-tui-test-surface.ts"
+      ],
+      "@dromio/workflow/client/workflow-tui-shell-test-surface": [
+        "src/sdk/client/workflow-tui-shell-test-surface.ts"
+      ],
+      "@dromio/workflow/client/workflow-render": [
+        "src/sdk/client/workflow-render/index.ts"
+      ],
+      "@dromio/workflow/client/workflow-room": [
+        "src/sdk/client/workflow-room/index.ts"
+      ],
+      "@dromio/workflow/client/workflow-field-svg": [
+        "src/sdk/client/workflow-field-svg/index.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane": [
+        "src/sdk/workflow-control-plane/index.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/control-plane": [
+        "src/sdk/workflow-control-plane/control-plane.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/http": [
+        "src/sdk/workflow-control-plane/http.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/json-trigger-store": [
+        "src/sdk/workflow-control-plane/json-trigger-store.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/sqlite-runtime-store": [
+        "src/sdk/workflow-control-plane/sqlite-runtime-store.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/types": [
+        "src/sdk/workflow-control-plane/types.ts"
+      ],
+      "@dromio/workflow/workflow-control-plane/worker": [
+        "src/sdk/workflow-control-plane/worker.ts"
+      ],
+      "@dromio/workflow/core": [
+        "src/sdk/core/index.ts"
+      ],
+      "@dromio/workflow/distribution": [
+        "src/sdk/distribution/index.ts"
+      ],
+      "@dromio/workflow/agents/runtime": [
+        "src/sdk/agents/runtime/index.ts"
+      ],
+      "@dromio/workflow/init/workbench": [
+        "src/sdk/init/workbench.ts"
+      ],
+      "@dromio/workflow/product": [
+        "src/sdk/product/index.ts"
+      ],
+      "@dromio/workflow/tools/surface": [
+        "src/sdk/tools/surface/index.ts"
+      ],
+      "@dromio/workflow/react": [
+        "src/sdk/react/index.ts"
+      ],
+      "@dromio/execution": ["../execution/src/index.ts"],
+      "@dromio/trigger": ["../trigger/src/index.ts"],
+      "@dromio/thread-service": ["../thread/service/dist/index.d.ts"],
+      "@dromio/protocols": [
+        "../protocols/dist/index.d.ts"
+      ],
+      "@dromio/workflow-room-protocol": [
+        "../room/protocol/dist/index.d.ts"
+      ],
+      "@dromio/workflow-kernel": [
+        "../workflow/kernel/dist/index.d.ts"
+      ]
+    },
+    "types": [
+      "bun",
+      "node"
+    ],
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "bin/**/*.ts",
+    "index.ts",
+    "scripts/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ]
+}

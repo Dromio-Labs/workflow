@@ -1,0 +1,45 @@
+{
+  "name": "dromio-workflow",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "packages/execution",
+    "packages/protocols",
+    "packages/room/protocol",
+    "packages/sdk",
+    "packages/shell/chat-shell-ui",
+    "packages/thread/service",
+    "packages/trigger",
+    "packages/workflow/canvas-protocol",
+    "packages/workflow/kernel"
+  ],
+  "scripts": {
+    "build": "bun run --cwd packages/sdk build",
+    "check": "bun run check:workflow-actions && bun run check:closure && bun run --cwd packages/sdk verify:package",
+    "check:workflow-actions": "bun scripts/check-workflow-actions.ts",
+    "check:closure": "bun run --cwd packages/protocols check && bun run --cwd packages/execution check && bun run --cwd packages/thread/service check && bun run --cwd packages/trigger check && bun run --cwd packages/workflow/canvas-protocol check && bun run --cwd packages/workflow/kernel check && bun run --cwd packages/room/protocol check && bun run --cwd packages/shell/chat-shell-ui check && bun run --cwd packages/sdk check && bun run --cwd packages/sdk test",
+    "local-registry": "bun scripts/build-local-registry.ts",
+    "release:rehearse": "bun scripts/release.ts rehearse",
+    "release:publish-next": "bun scripts/release.ts publish-next",
+    "release:verify-next": "bun scripts/release.ts verify-next",
+    "release:promote-latest": "bun scripts/release.ts promote-latest",
+    "test": "bun test packages/sdk",
+    "typecheck": "bun run --cwd packages/sdk check"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "24.13.2",
+    "ajv": "8.18.0",
+    "typescript": "5.9.3"
+  },
+  "overrides": {
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "tar": "7.5.16"
+  },
+  "trustedDependencies": [],
+  "license": "Apache-2.0"
+}

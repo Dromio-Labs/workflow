@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "dromio.workflow-run-event.v1",
+  "workflowId": "workflow_builder",
+  "type": "workflow.run.progress",
+  "timestamp": "2026-06-18T12:11:00.000Z"
+}
+

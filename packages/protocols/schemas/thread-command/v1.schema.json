@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-command/v1.schema.json",
+  "title": "Dromio Thread Command v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "commandId", "correlationId", "requestId", "name", "tenantId", "applicationId", "timestamp", "payload"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.thread-command.v1" },
+    "commandId": { "type": "string", "minLength": 1 },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "name": { "enum": ["threads.create", "threads.update", "threads.archive", "threads.unarchive", "threads.delete", "threads.fork", "turns.create", "turns.retry", "turns.regenerate", "turns.steer", "turns.interrupt", "turns.cancel", "interactions.resolve", "items.revise", "items.withdraw", "items.delete", "items.redact", "participants.grant", "participants.revoke", "user_state.update", "share_links.create", "drafts.save", "drafts.delete", "exports.create", "retention.set", "legal_holds.create", "legal_holds.release", "threads.purge"] },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "expectedVersion": { "type": "integer", "minimum": 0 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "payload": { "type": "object" }
+  }
+}

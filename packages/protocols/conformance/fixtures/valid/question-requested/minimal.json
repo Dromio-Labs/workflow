@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "dromio.question-requested.v1",
+  "questionId": "question_123",
+  "roomId": "room_123",
+  "workflowId": "workflow_builder",
+  "workflowRunId": "run_123",
+  "requesterParticipantId": "agent_builder",
+  "assigneeParticipantIds": ["human_owner"],
+  "question": "Should this workflow publish as an org asset?",
+  "createdAt": "2026-06-18T12:07:00.000Z"
+}
+

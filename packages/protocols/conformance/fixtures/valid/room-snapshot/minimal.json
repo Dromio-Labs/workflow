@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "dromio.room-snapshot.v1",
+  "roomId": "room_123",
+  "status": "live",
+  "participants": [
+    {
+      "participantId": "human_owner",
+      "kind": "human",
+      "displayName": "Owner",
+      "status": "joined"
+    }
+  ],
+  "messages": [],
+  "hands": [],
+  "approvals": [],
+  "artifacts": [],
+  "decisions": [],
+  "updatedAt": "2026-06-18T12:03:00.000Z"
+}
+

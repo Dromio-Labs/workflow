@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "dromio.room-event.v1",
+  "eventId": "room_evt_001",
+  "roomId": "room_123",
+  "type": "handRaise.pending",
+  "occurredAt": "2026-06-18T12:02:01.000Z",
+  "payload": {}
+}
+

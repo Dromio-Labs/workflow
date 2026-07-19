@@ -1,0 +1,48 @@
+{
+  "name": "@dromio/workflow-room-protocol",
+  "version": "0.1.41",
+  "dromio": {
+    "stability": "beta"
+  },
+  "private": false,
+  "type": "module",
+  "description": "Shared Dromio workflow room protocol for collaboration sessions, render snapshots, hooks, and view commands.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./json-render": {
+      "types": "./dist/json-render.d.ts",
+      "import": "./dist/json-render.js",
+      "require": "./dist/json-render.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "(cd ../../protocols && bun run build) && (cd ../../workflow/canvas-protocol && bun run build) && node ../../../node_modules/typescript/bin/tsc -p tsconfig.json && bun build src/index.ts --target=node --format=cjs --outfile dist/index.cjs && bun build src/json-render.ts --target=node --format=cjs --outfile dist/json-render.cjs",
+    "check": "(cd ../../protocols && bun run build) && (cd ../../workflow/canvas-protocol && bun run build) && node ../../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@dromio/protocols": "workspace:*",
+    "@dromio/workflow-canvas-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dromio-Labs/workflow.git",
+    "directory": "packages/room/protocol"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

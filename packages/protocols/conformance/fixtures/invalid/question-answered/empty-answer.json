@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "dromio.question-answered.v1",
+  "questionId": "question_123",
+  "roomId": "room_123",
+  "answererParticipantId": "human_owner",
+  "answer": "",
+  "answeredAt": "2026-06-18T12:08:00.000Z"
+}
+

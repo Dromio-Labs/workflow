@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.thread.v1","id":"thread-1","tenantId":"tenant-1","applicationId":"app-1","title":"New chat","labels":[],"status":"active","createdBy":{"type":"user","id":"user-1"},"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z","version":1,"lastSequence":1,"lastItemOrdinal":0,"lastTurnOrdinal":0}

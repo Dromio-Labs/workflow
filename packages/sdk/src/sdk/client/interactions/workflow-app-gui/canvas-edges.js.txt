@@ -1,0 +1,86 @@
+export function renderCanvasEdges(svg, layout, boxById) {
+  svg.innerHTML = `<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker><marker id="loop-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z"></path></marker></defs>`;
+  for (const edge of layout.edges) {
+    const source = boxById.get(edge.sourceBoxId);
+    const target = boxById.get(edge.targetBoxId);
+    if (!source || !target) continue;
+    const role = edge.semantic.role;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.classList.add("workflow-edge");
+    path.dataset.kind = edge.kind;
+    path.dataset.role = role;
+    path.dataset.selected = String(edge.semantic.role === "route" && edge.semantic.route.selected);
+    path.dataset.source = edge.sourceBoxId;
+    path.dataset.target = edge.targetBoxId;
+    path.setAttribute("d", edgePath(source, target, edge.kind));
+    path.setAttribute("marker-end", edge.kind === "loop" ? "url(#loop-arrow)" : "url(#arrow)");
+    path.setAttribute("role", "img");
+    path.setAttribute("aria-label", edgeAccessibleLabel(edge));
+    if (edge.label) path.setAttribute("tabindex", "0");
+    svg.append(path);
+    const label = edgeLabel(edge);
+    if (label) svg.append(edgeLabelElement(label, source, target, edge.kind, role));
+  }
+}
+
+function edgeLabel(edge) {
+  if (edge.semantic.role === "composition") return "opens";
+  if (edge.semantic.role === "route" && edge.semantic.route.selected) return `✓ ${edge.semantic.route.label}`;
+  return edge.label;
+}
+
+function edgeAccessibleLabel(edge) {
+  if (edge.semantic.role === "route") return `${edge.semantic.route.label} route, ${edge.semantic.route.selected ? "selected" : "not selected"}`;
+  if (edge.semantic.role === "branch") return `${edge.semantic.branch.label} branch`;
+  if (edge.semantic.role === "join") return `${edge.semantic.policy} join`;
+  return edge.label ? `${edge.semantic.role}: ${edge.label}` : edge.semantic.role;
+}
+
+function edgeLabelElement(label, source, target, kind, role) {
+  const point = edgeLabelPoint(source, target, kind);
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.classList.add("workflow-edge-label");
+  text.dataset.role = role;
+  text.setAttribute("x", String(point.x));
+  text.setAttribute("y", String(point.y));
+  text.textContent = label;
+  return text;
+}
+
+function edgeLabelPoint(source, target, kind) {
+  if (kind === "composition") {
+    return {
+      x: (source.x + source.width / 2 + target.x + target.width / 2) / 2,
+      y: (source.y + source.height + target.y) / 2 - 6,
+    };
+  }
+  return {
+    x: (source.x + source.width + target.x) / 2,
+    y: (source.y + source.height / 2 + target.y + target.height / 2) / 2 - 7,
+  };
+}
+
+function edgePath(source, target, kind) {
+  if (kind === "loop") {
+    const startX = source.x + source.width / 2;
+    const startY = source.y + source.height;
+    const endX = target.x + target.width / 2;
+    const endY = target.y + target.height;
+    const lower = Math.max(startY, endY) + 54;
+    return `M ${startX} ${startY} C ${startX} ${lower}, ${endX} ${lower}, ${endX} ${endY}`;
+  }
+  if (kind === "composition") {
+    const startX = source.x + source.width / 2;
+    const startY = source.y + source.height;
+    const endX = target.x + target.width / 2;
+    const endY = target.y;
+    const midY = startY + (endY - startY) / 2;
+    return `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+  }
+  const startX = source.x + source.width;
+  const startY = source.y + source.height / 2;
+  const endX = target.x;
+  const endY = target.y + target.height / 2;
+  const midX = startX + Math.max(36, (endX - startX) / 2);
+  return `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+}

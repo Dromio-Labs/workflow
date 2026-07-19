@@ -1,0 +1,18 @@
+export function bindEnterSubmit(control, form) {
+  control.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    form.requestSubmit();
+  });
+}
+
+export function bindSidebarToggle(shell, button, fitView) {
+  button.addEventListener("click", () => {
+    const collapsed = shell.dataset.sidebarCollapsed !== "true";
+    shell.dataset.sidebarCollapsed = String(collapsed);
+    button.setAttribute("aria-expanded", String(!collapsed));
+  });
+  shell.addEventListener("transitionend", (event) => {
+    if (event.propertyName === "grid-template-columns") fitView();
+  });
+}

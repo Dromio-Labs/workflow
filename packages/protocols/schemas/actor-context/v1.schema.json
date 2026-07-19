@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/actor-context/v1.schema.json",
+  "title": "Dromio Actor Context v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "subject", "tenantId", "applicationId", "roles", "groupIds"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.actor-context.v1" },
+    "subject": { "$ref": "#/$defs/actorReference" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "roles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "groupIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+  },
+  "$defs": {
+    "actorReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["user", "service"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "principalReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["user", "group", "service", "tenant", "share_link"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "resourceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

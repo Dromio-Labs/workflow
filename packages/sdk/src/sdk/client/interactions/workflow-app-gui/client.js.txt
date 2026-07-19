@@ -1,0 +1,1069 @@
+import { highlightedJson, inspectableJson } from "/json.js";
+import { renderWorkflowActivity } from "/activity.js";
+import { renderCanvasEdges } from "/canvas-edges.js";
+import { bindEnterSubmit } from "/controls.js";
+import {
+  runStatusLabel,
+  statusFromWorkflowEvent,
+  streamWorkflowRequest,
+} from "/runtime.js";
+
+const payload = JSON.parse(document.getElementById("workflow-gui-data").textContent);
+const byId = (id) => document.getElementById(id);
+const list = byId("workflow-list");
+const title = byId("workflow-title");
+const triggerLabel = byId("trigger-label");
+const viewport = byId("canvas-viewport");
+const world = byId("canvas-world");
+const edges = byId("canvas-edges");
+const boxes = byId("canvas-boxes");
+const inspector = byId("inspector");
+const nodeDetail = byId("node-detail");
+const runButton = byId("run-workflow-header");
+const runDock = byId("run-dock");
+const runForm = byId("run-form");
+const runInput = byId("run-input");
+const runSubmit = byId("run-submit");
+const structuredRunForm = byId("structured-run-form");
+const structuredRunFields = byId("structured-run-fields");
+const structuredRunSubmit = byId("structured-run-submit");
+const artifactRunForm = byId("artifact-run-form");
+const artifactFileInput = byId("artifact-file-input");
+const artifactDropZone = byId("artifact-drop-zone");
+const artifactFileList = byId("artifact-file-list");
+const questionForm = byId("question-form");
+let followLatestActivity = true;
+let inspectorPointerScrolling = false;
+let inspectorScrollIntent = false;
+let syncingInspectorScroll = false;
+let waitingRunPollTimer;
+const workflowById = new Map(payload.workflows.map((workflow) => [workflow.id, workflow]));
+const requested = new URLSearchParams(location.search).get("workflow");
+const state = {
+  dragging: false,
+  error: undefined,
+  events: [],
+  artifactDrafts: new Map(),
+  inputDrafts: new Map(payload.workflows.flatMap((workflow) => workflow.triggers.map((trigger) => [triggerKey(workflow.id, trigger.id), defaultTriggerDraft(trigger.input)]))),
+  questionIndexes: new Map(),
+  modelPreviews: new Map(),
+  pointerX: 0,
+  pointerY: 0,
+  run: undefined,
+  running: false,
+  scale: 1,
+  selectedBoxId: undefined,
+  statuses: new Map(),
+  triggerIds: new Map(payload.workflows.map((workflow) => [workflow.id, workflow.trigger.id])),
+  workflowId: workflowById.has(requested) ? requested : payload.defaultWorkflowId,
+  x: 0,
+  y: 0,
+};
+
+byId("fit-view").addEventListener("click", fitView);
+byId("zoom-in").addEventListener("click", () => zoomAt(1.18));
+byId("zoom-out").addEventListener("click", () => zoomAt(0.84));
+runButton.addEventListener("click", prepareOrStartRun);
+runForm.addEventListener("submit", startRunFromComposer);
+structuredRunForm.addEventListener("submit", startRunFromStructuredComposer);
+structuredRunFields.addEventListener("input", syncStructuredRunSubmit);
+structuredRunFields.addEventListener("change", syncStructuredRunSubmit);
+byId("structured-run-back").addEventListener("click", previousTriggerQuestion);
+byId("structured-run-skip").addEventListener("click", skipTriggerQuestion);
+artifactRunForm.addEventListener("submit", startRunFromArtifactComposer);
+artifactFileInput.addEventListener("change", () => addArtifactFiles(artifactFileInput.files));
+artifactDropZone.addEventListener("dragover", (event) => {
+  event.preventDefault();
+  artifactDropZone.dataset.dragging = "true";
+});
+artifactDropZone.addEventListener("dragleave", () => delete artifactDropZone.dataset.dragging);
+artifactDropZone.addEventListener("drop", (event) => {
+  event.preventDefault();
+  delete artifactDropZone.dataset.dragging;
+  addArtifactFiles(event.dataTransfer?.files);
+});
+runInput.addEventListener("input", () => state.inputDrafts.set(currentTriggerKey(), runInput.value));
+questionForm.addEventListener("submit", answerQuestion);
+bindEnterSubmit(runInput, runForm);
+bindEnterSubmit(byId("question-custom"), questionForm);
+viewport.addEventListener("wheel", onWheel, { passive: false });
+viewport.addEventListener("pointerdown", onPointerDown);
+viewport.addEventListener("pointermove", onPointerMove);
+viewport.addEventListener("pointerup", onPointerUp);
+viewport.addEventListener("pointercancel", onPointerUp);
+viewport.addEventListener("click", (event) => {
+  if (event.target === viewport || event.target === world || event.target === boxes) {
+    state.selectedBoxId = undefined;
+    renderInspector();
+    markSelectedNode();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !state.selectedBoxId) return;
+  state.selectedBoxId = undefined;
+  renderInspector();
+  markSelectedNode();
+});
+inspector.addEventListener("wheel", () => {
+  inspectorScrollIntent = true;
+}, { passive: true });
+inspector.addEventListener("pointerdown", () => {
+  inspectorPointerScrolling = true;
+});
+inspector.addEventListener("pointerup", () => {
+  inspectorPointerScrolling = false;
+  inspectorScrollIntent = false;
+});
+inspector.addEventListener("keydown", (event) => {
+  if (["ArrowDown", "ArrowUp", "End", "Home", "PageDown", "PageUp", " "].includes(event.key)) {
+    inspectorScrollIntent = true;
+  }
+});
+inspector.addEventListener("scroll", () => {
+  if (syncingInspectorScroll || (!inspectorScrollIntent && !inspectorPointerScrolling)) return;
+  followLatestActivity = inspector.scrollHeight - inspector.scrollTop - inspector.clientHeight <= 24;
+  inspector.dataset.followLatest = String(followLatestActivity);
+  if (!inspectorPointerScrolling) inspectorScrollIntent = false;
+}, { passive: true });
+addEventListener("resize", fitView);
+addEventListener("workflow-gui-layout-change", () => requestAnimationFrame(fitView));
+addEventListener("workflow-gui-activity-layout-change", () => {
+  if (followLatestActivity) requestAnimationFrame(() => scrollActivityToLatest());
+});
+addEventListener("workflow-gui-select-workflow", (event) => {
+  const workflowId = event.detail?.workflowId;
+  if (typeof workflowId === "string" && workflowById.has(workflowId)) selectWorkflow(workflowId, true);
+});
+selectWorkflow(state.workflowId, false);
+
+function selectWorkflow(workflowId, updateUrl) {
+  state.workflowId = workflowId;
+  const workflow = currentWorkflow();
+  title.textContent = workflow.title;
+  triggerLabel.textContent = currentTrigger().label;
+  for (const button of list.querySelectorAll("[data-workflow-id]")) {
+    if (button.dataset.workflowId === workflowId) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  if (updateUrl) {
+    const url = new URL(location.href);
+    url.searchParams.set("workflow", workflowId);
+    history.replaceState(null, "", url);
+  }
+  resetRun();
+  renderCanvas();
+  renderInspector();
+  requestAnimationFrame(fitView);
+}
+function resetRun() {
+  stopWaitingRunPoll();
+  followLatestActivity = true;
+  state.error = undefined;
+  state.events = [];
+  state.modelPreviews.clear();
+  state.run = undefined;
+  state.running = false;
+  state.selectedBoxId = undefined;
+  state.statuses.clear();
+  runButton.disabled = false;
+  runButton.textContent = "Run";
+  syncTriggerComposer();
+  if (boxes.children.length) renderCanvas();
+  renderInspector();
+}
+function prepareOrStartRun() {
+  if (state.running) return;
+  const triggerInput = currentTrigger().input;
+  const input = state.inputDrafts.get(currentTriggerKey()) || "";
+  if (triggerInput.kind === "none") {
+    void executeRun("");
+    return;
+  }
+  if (triggerInput.kind === "prompt" && input) {
+    void executeRun(input);
+    return;
+  }
+  syncTriggerComposer();
+  if (triggerInput.kind === "prompt") runInput.focus();
+}
+
+async function startRunFromComposer(event) {
+  event.preventDefault();
+  const input = runInput.value.trim();
+  if (!input || state.running) return;
+  state.inputDrafts.set(currentTriggerKey(), input);
+  await executeRun(input);
+}
+
+function syncTriggerComposer() {
+  const workflow = currentWorkflow();
+  const trigger = currentTrigger();
+  const input = trigger.input;
+  const visible = input.kind !== "none" && !state.running;
+  runDock.hidden = !visible;
+  runForm.hidden = !visible || input.kind !== "prompt";
+  structuredRunForm.hidden = !visible || (input.kind !== "json-render" && input.kind !== "questions");
+  artifactRunForm.hidden = !visible || input.kind !== "artifact";
+  questionForm.hidden = true;
+  runInput.value = typeof state.inputDrafts.get(currentTriggerKey()) === "string" ? state.inputDrafts.get(currentTriggerKey()) : "";
+  runInput.placeholder = input.kind === "prompt" && input.placeholder ? input.placeholder : "Enter the prompt for this workflow";
+  triggerLabel.textContent = trigger.label;
+  byId("run-input-label").textContent = `${trigger.label} · ${trigger.type} trigger`;
+  runInput.disabled = state.running;
+  runSubmit.disabled = state.running;
+  if (input.kind === "json-render" || input.kind === "questions") renderStructuredTrigger(input);
+  if (input.kind === "artifact") renderArtifactTrigger(input);
+}
+
+function defaultTriggerDraft(input) {
+  if (input.kind === "prompt") return input.defaultValue || "";
+  if (input.kind === "json-render") return input.defaultValue && typeof input.defaultValue === "object"
+    ? structuredClone(input.defaultValue)
+    : {};
+  return {};
+}
+
+function renderStructuredTrigger(input) {
+  const draft = state.inputDrafts.get(currentTriggerKey()) || {};
+  structuredRunFields.replaceChildren();
+  if (input.kind === "questions") {
+    renderTriggerQuestion(input, draft);
+    return;
+  }
+  byId("structured-run-title").textContent = input.label || input.document?.props?.title || "Workflow input";
+  byId("structured-run-description").textContent = input.description || "Complete the structured fields to start this workflow.";
+  byId("structured-run-progress").textContent = input.document?.component || "JSON Render";
+  byId("structured-run-back").hidden = true;
+  byId("structured-run-skip").hidden = true;
+  byId("structured-run-submit").textContent = input.document?.props?.submitLabel || "Run workflow";
+  const fields = jsonTriggerFields(input);
+  if (window.workflowGuiRenderTriggerForm) {
+    window.workflowGuiRenderTriggerForm(structuredRunFields, input.document, fields, draft);
+  } else {
+    for (const field of fields) structuredRunFields.append(structuredField(field, draft[field.name]));
+  }
+  syncStructuredRunSubmit();
+}
+
+function jsonTriggerFields(input) {
+  const documentFields = input.document?.props?.fields;
+  if (Array.isArray(documentFields)) {
+    return documentFields.filter((field) => field && typeof field === "object" && typeof field.name === "string");
+  }
+  const properties = input.jsonSchema?.properties;
+  if (properties && typeof properties === "object" && !Array.isArray(properties)) {
+    const required = new Set(Array.isArray(input.jsonSchema.required) ? input.jsonSchema.required : []);
+    return Object.entries(properties).map(([name, schema]) => ({
+      ...(schema && typeof schema === "object" && !Array.isArray(schema) ? schema : {}),
+      label: schema?.title || titleCase(name),
+      name,
+      required: required.has(name),
+    }));
+  }
+  return [{ label: "JSON input", name: "$value", required: input.required, type: "textarea", valueType: "json" }];
+}
+
+function structuredField(field, value) {
+  const label = element("label", "structured-field");
+  const heading = element("span", "structured-field-label", field.label || titleCase(field.name));
+  if (field.required) heading.append(element("span", "required-mark", "Required"));
+  label.append(heading);
+  if (field.description) label.append(element("span", "structured-field-description", field.description));
+  const type = field.type || "text";
+  const control = type === "textarea" || field.valueType === "json"
+    ? element("textarea", "structured-control")
+    : element("input", "structured-control");
+  control.dataset.fieldName = field.name;
+  control.dataset.valueType = field.valueType || type;
+  control.required = Boolean(field.required);
+  control.placeholder = field.placeholder || "";
+  if (control instanceof HTMLInputElement) {
+    control.type = type === "checkbox" ? "checkbox" : type === "number" ? "number" : "text";
+    if (control.type === "checkbox") control.checked = Boolean(value ?? field.defaultValue);
+    else control.value = value ?? field.defaultValue ?? "";
+  } else {
+    control.rows = 3;
+    control.value = field.valueType === "json" && value && typeof value === "object"
+      ? JSON.stringify(value, null, 2)
+      : value ?? field.defaultValue ?? "";
+  }
+  label.append(control);
+  return label;
+}
+
+function renderTriggerQuestion(input, draft) {
+  const index = Math.min(state.questionIndexes.get(currentTriggerKey()) || 0, input.questions.length - 1);
+  const question = input.questions[index];
+  if (!question) return;
+  byId("structured-run-title").textContent = question.prompt;
+  byId("structured-run-description").textContent = question.description || input.description || "Choose an option to continue.";
+  byId("structured-run-progress").textContent = `${index + 1} of ${input.questions.length}`;
+  byId("structured-run-back").hidden = index === 0;
+  byId("structured-run-skip").hidden = !question.skippable;
+  byId("structured-run-submit").textContent = index === input.questions.length - 1 ? "Run workflow" : "Next";
+  question.options.forEach((option, optionIndex) => {
+    const row = element("label", "trigger-choice");
+    const radio = element("input", "");
+    radio.type = "radio";
+    radio.name = "trigger-choice";
+    radio.value = JSON.stringify(option.value);
+    radio.checked = JSON.stringify(draft[question.id]) === radio.value;
+    const number = element("span", "trigger-choice-number", String(optionIndex + 1));
+    const copy = element("span", "trigger-choice-copy");
+    const title = element("strong", "", option.label);
+    if (option.recommended) title.append(element("span", "recommended-pill", "Recommended"));
+    copy.append(title);
+    if (option.description) copy.append(element("span", "", option.description));
+    row.append(radio, number, copy, element("span", "trigger-choice-arrow", "→"));
+    structuredRunFields.append(row);
+  });
+  if (question.allowCustom) {
+    structuredRunFields.append(structuredField({ label: "Or provide a custom answer", name: "$custom", type: "text" }, ""));
+  }
+  syncStructuredRunSubmit();
+}
+
+function syncStructuredRunSubmit() {
+  const input = currentTrigger().input;
+  if (input.kind === "questions") {
+    const index = state.questionIndexes.get(currentTriggerKey()) || 0;
+    const question = input.questions[index];
+    const selected = structuredRunFields.querySelector('input[name="trigger-choice"]:checked');
+    const custom = structuredRunFields.querySelector('[data-field-name="$custom"]')?.value.trim();
+    structuredRunSubmit.disabled = state.running || !question || (!selected && !custom);
+    return;
+  }
+  structuredRunSubmit.disabled = state.running || structuredFormValue() === undefined;
+}
+
+async function startRunFromStructuredComposer(event) {
+  event.preventDefault();
+  if (state.running) return;
+  const input = currentTrigger().input;
+  if (input.kind === "questions") {
+    const draft = state.inputDrafts.get(currentTriggerKey()) || {};
+    const index = state.questionIndexes.get(currentTriggerKey()) || 0;
+    const question = input.questions[index];
+    const selected = structuredRunFields.querySelector('input[name="trigger-choice"]:checked');
+    const custom = structuredRunFields.querySelector('[data-field-name="$custom"]')?.value.trim();
+    if (!question || (!selected && !custom)) return;
+    draft[question.id] = custom || (selected ? JSON.parse(selected.value) : null);
+    state.inputDrafts.set(currentTriggerKey(), draft);
+    if (index < input.questions.length - 1) {
+      state.questionIndexes.set(currentTriggerKey(), index + 1);
+      renderStructuredTrigger(input);
+      return;
+    }
+    await executeRun(draft);
+    return;
+  }
+  const value = structuredFormValue();
+  if (value === undefined) return;
+  state.inputDrafts.set(currentTriggerKey(), value);
+  await executeRun(value);
+}
+
+function structuredFormValue() {
+  const value = {};
+  for (const control of structuredRunFields.querySelectorAll("[data-field-name]")) {
+    const raw = control.type === "checkbox" ? control.checked : control.value.trim();
+    if (control.required && (raw === "" || raw === false)) return undefined;
+    if (control.dataset.fieldName === "$value") {
+      try { return raw ? JSON.parse(raw) : {}; } catch { return undefined; }
+    }
+    if (control.dataset.valueType === "number") value[control.dataset.fieldName] = Number(raw);
+    else if (control.dataset.valueType === "boolean" || control.type === "checkbox") value[control.dataset.fieldName] = Boolean(raw);
+    else if (control.dataset.valueType === "json") {
+      try { value[control.dataset.fieldName] = raw ? JSON.parse(raw) : null; } catch { return undefined; }
+    } else value[control.dataset.fieldName] = raw;
+  }
+  return value;
+}
+
+function previousTriggerQuestion() {
+  const index = state.questionIndexes.get(currentTriggerKey()) || 0;
+  state.questionIndexes.set(currentTriggerKey(), Math.max(0, index - 1));
+  renderStructuredTrigger(currentTrigger().input);
+}
+
+function skipTriggerQuestion() {
+  const input = currentTrigger().input;
+  if (input.kind !== "questions") return;
+  const index = state.questionIndexes.get(currentTriggerKey()) || 0;
+  const question = input.questions[index];
+  const draft = state.inputDrafts.get(currentTriggerKey()) || {};
+  if (question) draft[question.id] = null;
+  state.inputDrafts.set(currentTriggerKey(), draft);
+  if (index < input.questions.length - 1) {
+    state.questionIndexes.set(currentTriggerKey(), index + 1);
+    renderStructuredTrigger(input);
+  } else void executeRun(draft);
+}
+
+function renderArtifactTrigger(input) {
+  const files = state.artifactDrafts.get(currentTriggerKey()) || [];
+  byId("artifact-run-title").textContent = input.label || "Add workflow files";
+  byId("artifact-run-description").textContent = input.description || "Drag files here or click to browse";
+  byId("artifact-run-constraints").textContent = artifactConstraints(input);
+  artifactFileInput.accept = (input.accept || []).join(",");
+  artifactFileInput.multiple = Boolean(input.multiple);
+  artifactFileList.replaceChildren(...files.map((file, index) => artifactFileRow(file, index)));
+  byId("artifact-run-submit").disabled = Boolean(input.required && files.length === 0);
+}
+
+function artifactConstraints(input) {
+  const parts = [];
+  if (input.accept?.length) parts.push(input.accept.join(", "));
+  if (input.maxBytes) parts.push(`up to ${formatFileSize(input.maxBytes)}`);
+  return parts.join(" · ") || "Select a file to continue";
+}
+
+function addArtifactFiles(fileList) {
+  const input = currentTrigger().input;
+  if (input.kind !== "artifact" || !fileList) return;
+  const accepted = [...fileList].filter((file) => !input.maxBytes || file.size <= input.maxBytes);
+  const files = input.multiple ? [...(state.artifactDrafts.get(currentTriggerKey()) || []), ...accepted] : accepted.slice(0, 1);
+  state.artifactDrafts.set(currentTriggerKey(), files);
+  renderArtifactTrigger(input);
+}
+
+function artifactFileRow(file, index) {
+  const row = element("div", "artifact-file-row");
+  const copy = element("div", "artifact-file-copy");
+  copy.append(element("strong", "", file.name), element("span", "", `${formatFileSize(file.size)} · Ready`));
+  const remove = element("button", "artifact-file-remove", "×");
+  remove.type = "button";
+  remove.setAttribute("aria-label", `Remove ${file.name}`);
+  remove.addEventListener("click", () => {
+    const files = state.artifactDrafts.get(currentTriggerKey()) || [];
+    files.splice(index, 1);
+    renderArtifactTrigger(currentTrigger().input);
+  });
+  row.append(element("span", "artifact-file-badge", file.name.split(".").at(-1)?.toUpperCase() || "FILE"), copy, remove);
+  return row;
+}
+
+async function startRunFromArtifactComposer(event) {
+  event.preventDefault();
+  const input = currentTrigger().input;
+  const files = state.artifactDrafts.get(currentTriggerKey()) || [];
+  if (state.running || (input.required && files.length === 0)) return;
+  const attachments = await Promise.all(files.map((file, index) => uploadArtifact(file, index)));
+  await executeRun({ artifacts: attachments }, attachments);
+}
+
+async function uploadArtifact(file, index) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("label", `attachment-${index + 1}`);
+  form.set("triggerId", currentTrigger().id);
+  form.set("workflowId", state.workflowId);
+  const response = await fetch("/api/artifacts", { body: form, method: "POST" });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || `Artifact upload failed with ${response.status}.`);
+  return body;
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function titleCase(value) {
+  return String(value).replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+async function executeRun(input, attachments) {
+  stopWaitingRunPoll();
+  followLatestActivity = true;
+  state.error = undefined;
+  state.events = [];
+  state.modelPreviews.clear();
+  state.run = undefined;
+  state.selectedBoxId = undefined;
+  state.statuses.clear();
+  markSelectedNode();
+  setRunning(true);
+  runDock.hidden = true;
+  renderCanvas();
+  renderInspector();
+  try {
+    await streamWorkflowRequest("/api/runs", { attachments, input, triggerId: currentTrigger().id, workflowId: state.workflowId }, receiveMessage);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function answerQuestion(event) {
+  event.preventDefault();
+  const question = state.run?.pendingQuestions?.[0];
+  if (!question || state.running) return;
+  const selected = questionForm.querySelector("input[name=question-answer]:checked");
+  const custom = byId("question-custom").value.trim();
+  const value = question.type === "multi"
+    ? [...questionForm.querySelectorAll("input[name=question-answer]:checked")].map((item) => item.value)
+    : custom || selected?.value;
+  if (value === undefined || value === "" || (Array.isArray(value) && value.length === 0)) return;
+  questionForm.hidden = true;
+  runDock.hidden = true;
+  setRunning(true);
+  try {
+    const path = `/api/runs/${encodeURIComponent(state.run.runId)}/questions/${encodeURIComponent(question.id)}`;
+    await streamWorkflowRequest(path, { value }, receiveMessage);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function receiveMessage(message) {
+  if (message.type === "error") return showError(new Error(message.error));
+  if (message.type === "event") {
+    state.events.push(message.event);
+    applyEvent(message.event);
+    if (message.event.type === "model.response.delta") {
+      updateLiveActivityPreview(message.event);
+      return;
+    }
+  }
+  if (message.type === "run") {
+    state.run = message.run;
+    state.running = false;
+    renderRunState();
+    syncWaitingRunPoll();
+  }
+  renderInspector();
+}
+
+function syncWaitingRunPoll() {
+  if (state.run?.status !== "waiting") {
+    stopWaitingRunPoll();
+    return;
+  }
+  if (waitingRunPollTimer) return;
+  waitingRunPollTimer = setInterval(() => void pollWaitingRun(), 250);
+}
+
+function stopWaitingRunPoll() {
+  if (!waitingRunPollTimer) return;
+  clearInterval(waitingRunPollTimer);
+  waitingRunPollTimer = undefined;
+}
+
+async function pollWaitingRun() {
+  const run = state.run;
+  if (!run || run.status !== "waiting") {
+    stopWaitingRunPoll();
+    return;
+  }
+  try {
+    const response = await fetch(`/api/runs/${encodeURIComponent(run.runId)}`);
+    const updated = await response.json();
+    if (!response.ok) throw new Error(updated.error || response.statusText);
+    const knownIndexes = new Set(state.events.map((event) => event.index));
+    for (const event of updated.events || []) {
+      if (!knownIndexes.has(event.index)) receiveMessage({ event, type: "event" });
+    }
+    receiveMessage({ run: updated, type: "run" });
+  } catch (error) {
+    stopWaitingRunPoll();
+    showError(error);
+  }
+}
+
+function updateLiveActivityPreview(event) {
+  const key = event.trace?.spanId || `${event.stepId || "workflow"}:model`;
+  const item = [...inspector.querySelectorAll(".activity-item")]
+    .find((candidate) => candidate.dataset.activityKey === key);
+  const preview = item?.querySelector(".activity-preview");
+  if (!preview) return;
+  preview.textContent = state.modelPreviews.get(event.stepId) || "";
+  if (followLatestActivity) requestAnimationFrame(() => scrollActivityToLatest());
+}
+
+function applyEvent(event) {
+  const semanticChanged = applySemanticEvent(event);
+  const status = statusFromWorkflowEvent(event);
+  if (event.type === "run.started") setTerminalNodeStatus("trigger", "completed", currentTrigger().id);
+  if (event.type === "run.completed") setTerminalNodeStatus("end", "completed");
+  if (event.type === "run.failed") setTerminalNodeStatus("end", "failed");
+  if (event.stepId && (event.type === "fork.started" || event.type === "step.started")) {
+    setChildBoundaryStatus(event.stepId, "trigger", "completed");
+  }
+  if (event.stepId && (event.type === "fork.completed" || event.type === "join.completed" || event.type === "step.completed")) {
+    setChildBoundaryStatus(event.stepId, "end", "completed");
+  }
+  if (event.stepId && (event.type === "fork.failed" || event.type === "step.failed")) {
+    setChildBoundaryStatus(event.stepId, "end", "failed");
+  }
+  if (status && event.stepId) {
+    for (const box of stepBoxes(currentWorkflow())) {
+      if (matchesStep(box, event.stepId)) state.statuses.set(box.id, status);
+    }
+  }
+  if (event.type === "model.response.delta" && event.stepId) {
+    const delta = event.detail?.delta;
+    if (typeof delta === "string") {
+      const current = state.modelPreviews.get(event.stepId) || "";
+      state.modelPreviews.set(event.stepId, `${current}${delta}`.slice(0, 150));
+    }
+  }
+  if (semanticChanged) renderCanvas();
+  else updateCanvasStates(event.stepId);
+}
+
+function applySemanticEvent(event) {
+  const detail = event.detail && typeof event.detail === "object" && !Array.isArray(event.detail) ? event.detail : undefined;
+  if (event.type === "router.selected" && event.stepId && typeof detail?.routeId === "string") {
+    return selectSemanticRoute(event.stepId, detail.routeId);
+  }
+  if (event.type === "run.failed") return setSemanticTerminalOutcome("failed");
+  if (event.type === "run.cancelled") return setSemanticTerminalOutcome("cancelled");
+  if (event.stepId && (event.type === "question.requested" || event.type === "hook.waiting")) {
+    return setSemanticInteractionState(event.stepId, "waiting");
+  }
+  if (event.stepId && (event.type === "question.answered" || event.type === "hook.resumed" || event.type === "step.completed")) {
+    return setSemanticInteractionState(event.stepId, "resolved");
+  }
+  if (event.stepId && event.type === "step.failed") return setSemanticInteractionState(event.stepId, "failed");
+  return false;
+}
+
+function selectSemanticRoute(stepId, routeId) {
+  const workflow = currentWorkflow();
+  const router = findRenderNode(workflow.model, stepId);
+  if (!router || router.semantic.role !== "router") return false;
+  for (const route of router.semantic.routes) route.selected = route.id === routeId;
+  for (const edge of router.childWorkflow?.model.edges || []) {
+    if (edge.semantic.role === "route") edge.semantic.route.selected = edge.semantic.route.id === routeId;
+  }
+  const routerBox = stepBoxes(workflow).find((box) => box.sourceNodeId === router.id);
+  const childPrefix = routerBox ? `${routerBox.id}:child:` : undefined;
+  for (const edge of workflow.layout.edges) {
+    if (edge.semantic.role !== "route" || !childPrefix || !edge.sourceBoxId.startsWith(childPrefix)) continue;
+    edge.semantic.route.selected = edge.semantic.route.id === routeId;
+  }
+  return true;
+}
+
+function setSemanticTerminalOutcome(outcome) {
+  const terminal = currentWorkflow().model.nodes.find((node) => node.semantic.role === "terminal");
+  if (!terminal || terminal.semantic.outcome === outcome) return false;
+  terminal.semantic.outcome = outcome;
+  return true;
+}
+
+function setSemanticInteractionState(stepId, interactionState) {
+  const node = findRenderNode(currentWorkflow().model, stepId);
+  if (!node || node.semantic.role !== "interaction" || node.semantic.state === interactionState) return false;
+  node.semantic.state = interactionState;
+  return true;
+}
+
+function setChildBoundaryStatus(stepId, kind, status) {
+  const layout = currentWorkflow().layout;
+  const groups = layout.boxes.filter((box) => box.kind === "child-group" && matchesStep(box, stepId));
+  for (const group of groups) {
+    for (const box of layout.boxes) {
+      if (box.parentId === group.id && box.kind === kind) state.statuses.set(box.id, status);
+    }
+  }
+}
+
+function setTerminalNodeStatus(kind, status, sourceNodeId) {
+  const workflow = currentWorkflow();
+  for (const box of stepBoxes(workflow)) {
+    if (box.parentId) continue;
+    if (sourceNodeId && box.sourceNodeId !== sourceNodeId) continue;
+    const node = renderNode(workflow.model, box.modelId, box.sourceNodeId);
+    if (node && semanticKind(node) === kind) state.statuses.set(box.id, status);
+  }
+}
+
+function renderRunState() {
+  const run = state.run;
+  if (!run) return;
+  const waiting = run.status === "waiting";
+  runButton.disabled = waiting;
+  runButton.textContent = waiting ? "Waiting…" : "Run";
+  if (run.pendingQuestions?.length) renderQuestion(run.pendingQuestions[0]);
+  else syncTriggerComposer();
+}
+
+function renderQuestion(question) {
+  runDock.hidden = false;
+  runForm.hidden = true;
+  questionForm.hidden = false;
+  byId("question-title").textContent = question.title || question.prompt;
+  const options = byId("question-options");
+  options.replaceChildren(...(question.options || []).map((option) => {
+    const label = element("label", "question-option");
+    const input = document.createElement("input");
+    input.type = question.type === "multi" ? "checkbox" : "radio";
+    input.name = "question-answer";
+    input.value = option.value;
+    label.append(input, element("span", "", option.label));
+    return label;
+  }));
+  const custom = byId("question-custom");
+  custom.hidden = question.allowCustom === false && Boolean(question.options?.length);
+  custom.value = "";
+  custom.placeholder = question.type === "text" ? question.prompt : "Or type a custom answer";
+}
+
+function setRunning(running) {
+  state.running = running;
+  runButton.disabled = running;
+  runButton.textContent = running ? "Running…" : "Run";
+  if (running) runDock.hidden = true;
+}
+
+function showError(error) {
+  stopWaitingRunPoll();
+  state.running = false;
+  state.error = error instanceof Error ? error.message : String(error);
+  runDock.hidden = true;
+  runButton.disabled = false;
+  runButton.textContent = "Run";
+  syncTriggerComposer();
+  renderInspector();
+}
+
+function renderCanvas() {
+  const workflow = currentWorkflow();
+  const layout = workflow.layout;
+  const boxById = new Map(layout.boxes.map((box) => [box.id, box]));
+  world.style.width = `${layout.width}px`;
+  world.style.height = `${layout.height}px`;
+  edges.setAttribute("width", String(layout.width));
+  edges.setAttribute("height", String(layout.height));
+  edges.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
+  const hasSelectedRoute = layout.edges.some((edge) =>
+    edge.semantic.role === "route" && edge.semantic.route.selected
+  );
+  edges.dataset.hasSelectedRoute = String(hasSelectedRoute);
+  boxes.dataset.hasSelectedRoute = String(hasSelectedRoute);
+  renderCanvasEdges(edges, layout, boxById);
+  boxes.replaceChildren(...layout.boxes
+    .slice()
+    .sort((left, right) => left.zIndex - right.zIndex)
+    .map((box, index) => boxElement(workflow, box, index)));
+  applyTransform();
+  updateCanvasStates();
+}
+
+function boxElement(workflow, box, index) {
+  if (box.kind === "child-group" || box.kind === "loop-group") {
+    const group = element("div", box.kind === "child-group" ? "workflow-group" : "workflow-loop");
+    positionBox(group, box);
+    group.append(element("span", "group-label", groupLabel(workflow, box)));
+    return group;
+  }
+  if (box.kind === "initial") {
+    const initial = element("div", "workflow-initial-state");
+    initial.setAttribute("aria-label", box.label || "Initial state");
+    initial.setAttribute("role", "img");
+    positionBox(initial, box);
+    return initial;
+  }
+  const node = renderNode(workflow.model, box.modelId, box.sourceNodeId);
+  const kind = semanticKind(node);
+  const button = element("button", "workflow-node");
+  button.type = "button";
+  button.dataset.boxId = box.id;
+  button.dataset.kind = kind;
+  button.dataset.semantic = node.semantic.role;
+  button.dataset.nested = String(Boolean(box.parentId));
+  button.dataset.selected = String(state.selectedBoxId === box.id);
+  const incomingRoute = workflow.layout.edges.find((edge) =>
+    edge.targetBoxId === box.id && edge.semantic.role === "route"
+  );
+  button.dataset.route = incomingRoute
+    ? incomingRoute.semantic.route.selected ? "selected" : "unselected"
+    : "none";
+  button.style.setProperty("--node-index", String(index));
+  button.setAttribute("aria-label", semanticNodeLabel(node));
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (kind === "trigger" && !box.parentId && workflow.triggers.some((trigger) => trigger.id === box.sourceNodeId)) {
+      state.triggerIds.set(workflow.id, box.sourceNodeId);
+      syncTriggerComposer();
+    }
+    state.selectedBoxId = box.id;
+    renderInspector();
+    markSelectedNode();
+  });
+  positionBox(button, box);
+  const tags = element("span", "node-tags");
+  tags.append(tag(kind));
+  for (const detail of semanticTags(node)) tags.append(tag(detail));
+  if (incomingRoute?.semantic.role === "route" && incomingRoute.semantic.route.selected) {
+    tags.append(tag("✓ selected route"));
+  }
+  if (node?.childWorkflow) tags.append(tag("child workflow"));
+  button.append(
+    element("span", "node-icon", iconFor(kind)),
+    element("span", "node-label", box.label),
+    tags,
+    element("span", "node-preview"),
+  );
+  return button;
+}
+
+function updateCanvasStates(activeStepId) {
+  const workflow = currentWorkflow();
+  const boxById = new Map(workflow.layout.boxes.map((box) => [box.id, box]));
+  for (const node of boxes.querySelectorAll(".workflow-node")) {
+    const box = boxById.get(node.dataset.boxId);
+    const status = state.statuses.get(node.dataset.boxId) || "idle";
+    node.dataset.status = status;
+    const statusTag = node.querySelector(".status-tag");
+    statusTag?.remove();
+    if (status !== "idle") {
+      const next = tag(status);
+      next.classList.add("status-tag");
+      node.querySelector(".node-tags").append(next);
+    }
+    const preview = node.querySelector(".node-preview");
+    const modelText = [...state.modelPreviews.entries()].find(([stepId]) => matchesStep(box, stepId))?.[1];
+    preview.textContent = status === "running" ? modelText || "" : "";
+  }
+  for (const edge of edges.querySelectorAll(".workflow-edge")) {
+    const targetStatus = state.statuses.get(edge.dataset.target);
+    const sourceStatus = state.statuses.get(edge.dataset.source);
+    const sourceBox = boxById.get(edge.dataset.source);
+    const sourceNode = sourceBox && renderNode(workflow.model, sourceBox.modelId, sourceBox.sourceNodeId);
+    const sourceKind = sourceNode && semanticKind(sourceNode);
+    edge.dataset.status = sourceKind === "trigger" && !sourceStatus
+      ? "idle"
+      : targetStatus === "running" || sourceStatus === "running"
+      ? "running"
+      : targetStatus === "completed" ? "completed" : "idle";
+  }
+}
+
+function renderInspector() {
+  const previousScrollTop = inspector.scrollTop;
+  renderNodeDetail();
+  inspector.replaceChildren();
+  if (state.run || state.running || state.events.length || state.error) {
+    renderRunInspector();
+    syncActivityScroll(previousScrollTop);
+    return;
+  }
+  const empty = element("div", "inspector-empty");
+  empty.append(element("strong", "", "No activity yet"), element("span", "", "Run this workflow to follow its live execution trace."));
+  inspector.append(empty);
+}
+
+function renderNodeDetail() {
+  const workflow = currentWorkflow();
+  const box = workflow.layout.boxes.find((item) => item.id === state.selectedBoxId);
+  if (!box) {
+    nodeDetail.hidden = true;
+    nodeDetail.replaceChildren();
+    delete nodeDetail.dataset.renderKey;
+    return;
+  }
+  const node = renderNode(workflow.model, box.modelId, box.sourceNodeId);
+  const kind = semanticKind(node);
+  const status = state.statuses.get(box.id) || node?.status || "Pending";
+  const renderKey = `${box.id}:${status}:${JSON.stringify(node.semantic)}`;
+  if (nodeDetail.dataset.renderKey === renderKey) return;
+  nodeDetail.dataset.renderKey = renderKey;
+  nodeDetail.hidden = false;
+  const trigger = kind === "trigger" ? workflow.triggers.find((item) => item.id === box.sourceNodeId) : undefined;
+  const inputs = trigger
+    ? definitionList(triggerInspectorValues(trigger))
+    : highlightedJson(node?.ports?.filter((port) => port.type === "target") || []);
+  const heading = element("header", "node-detail-header");
+  const headingText = element("div", "");
+  headingText.append(element("div", "inspector-kicker", kind), element("h2", "", box.label));
+  const close = element("button", "node-detail-close", "×");
+  close.type = "button";
+  close.setAttribute("aria-label", "Close step details");
+  close.addEventListener("click", () => {
+    state.selectedBoxId = undefined;
+    renderInspector();
+    markSelectedNode();
+  });
+  heading.append(headingText, close);
+  nodeDetail.replaceChildren(
+    heading,
+    element("p", "inspector-description", node?.description || "Visible workflow step"),
+    section("Identity", definitionList({
+      Kind: kind,
+      Nested: box.parentId ? "Yes" : "No",
+      Status: status,
+      ...semanticInspectorValues(node),
+      "Step id": box.sourceNodeId,
+      Workflow: box.modelId,
+    })),
+    section(kind === "trigger" ? "Trigger input" : "Inputs", inputs),
+    section("Outputs", highlightedJson(node?.ports?.filter((port) => port.type === "source") || [])),
+  );
+  if (node?.metadata && Object.keys(node.metadata).length) {
+    nodeDetail.append(section("Metadata", highlightedJson(node.metadata)));
+  }
+}
+
+function syncActivityScroll(previousScrollTop) {
+  syncingInspectorScroll = true;
+  inspector.dataset.followLatest = String(followLatestActivity);
+  if (followLatestActivity) scrollActivityToLatest();
+  else inspector.scrollTop = previousScrollTop;
+  requestAnimationFrame(() => {
+    syncingInspectorScroll = false;
+  });
+}
+
+function scrollActivityToLatest() {
+  inspector.scrollTop = inspector.scrollHeight;
+}
+
+function renderRunInspector() {
+  const run = state.run;
+  const status = state.error ? "failed" : run?.status ?? "running";
+  const runId = run?.runId ?? state.events[0]?.runId;
+  inspector.append(
+    element("div", "inspector-kicker", "live run"),
+    element("h2", "", runStatusLabel(status)),
+    section("Run", definitionList({ Events: state.events.length, "Run id": runId, Status: status })),
+    renderWorkflowActivity(state.events, status, state.error),
+  );
+  if (run?.result !== undefined) inspector.append(section("Result", renderRunResult(run.result)));
+  else if (run?.state) inspector.append(section("State", highlightedJson(run.state)));
+}
+
+function markSelectedNode() {
+  for (const node of boxes.querySelectorAll(".workflow-node")) {
+    node.dataset.selected = String(node.dataset.boxId === state.selectedBoxId);
+  }
+}
+
+function fitView() {
+  const layout = currentWorkflow().layout;
+  const width = Math.max(1, viewport.clientWidth - 80);
+  const height = Math.max(1, viewport.clientHeight - 150);
+  state.scale = clamp(Math.min(width / layout.width, height / layout.height, 1), 0.25, 1.6);
+  state.x = (viewport.clientWidth - layout.width * state.scale) / 2;
+  state.y = (viewport.clientHeight - layout.height * state.scale) / 2 - 28;
+  applyTransform();
+}
+
+function zoomAt(multiplier, clientX = viewport.clientWidth / 2, clientY = viewport.clientHeight / 2) {
+  const next = clamp(state.scale * multiplier, 0.25, 1.8);
+  const worldX = (clientX - state.x) / state.scale;
+  const worldY = (clientY - state.y) / state.scale;
+  state.x = clientX - worldX * next;
+  state.y = clientY - worldY * next;
+  state.scale = next;
+  applyTransform();
+}
+
+function onWheel(event) {
+  if (event.target.closest?.(".node-detail-card")) return;
+  event.preventDefault();
+  const bounds = viewport.getBoundingClientRect();
+  zoomAt(event.deltaY > 0 ? 0.9 : 1.1, event.clientX - bounds.left, event.clientY - bounds.top);
+}
+function onPointerDown(event) {
+  if (event.button !== 0 || event.target.closest?.(".workflow-node, .run-dock, .node-detail-card")) return;
+  state.dragging = true;
+  state.pointerX = event.clientX;
+  state.pointerY = event.clientY;
+  viewport.dataset.dragging = "true";
+  viewport.setPointerCapture(event.pointerId);
+}
+function onPointerMove(event) {
+  if (!state.dragging) return;
+  state.x += event.clientX - state.pointerX;
+  state.y += event.clientY - state.pointerY;
+  state.pointerX = event.clientX;
+  state.pointerY = event.clientY;
+  applyTransform();
+}
+
+function onPointerUp(event) {
+  if (!state.dragging) return;
+  state.dragging = false;
+  viewport.dataset.dragging = "false";
+  if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+}
+
+function applyTransform() { world.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.scale})`; }
+function currentWorkflow() { return workflowById.get(state.workflowId); }
+function currentTrigger() { const workflow = currentWorkflow(); return workflow.triggers.find((trigger) => trigger.id === state.triggerIds.get(workflow.id)) || workflow.trigger; }
+function currentTriggerKey() { return triggerKey(state.workflowId, currentTrigger().id); }
+function triggerKey(workflowId, triggerId) { return `${workflowId}:${triggerId}`; }
+function triggerInspectorValues(trigger) {
+  const input = trigger.input;
+  return {
+    Type: trigger.type,
+    "Input mode": input.kind,
+    Required: input.required ? "Yes" : "No",
+    ...(input.kind === "prompt" ? { Placeholder: input.placeholder || "—" } : {}),
+    ...(input.kind === "json-render" ? { Component: input.document?.component || "—" } : {}),
+    ...(input.kind === "artifact" ? { "Accepted files": input.accept?.join(", ") || "Any", Multiple: input.multiple ? "Yes" : "No", "Maximum size": input.maxBytes ? formatFileSize(input.maxBytes) : "—" } : {}),
+    ...(input.kind === "questions" ? { Questions: input.questions.length } : {}),
+  };
+}
+function stepBoxes(workflow) { return workflow.layout.boxes.filter((box) => !box.kind.endsWith("group")); }
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+function matchesStep(box, stepId) { return box && (stepId === box.sourceNodeId || stepId.endsWith(`.${box.sourceNodeId}`)); }
+function semanticKind(node) {
+  if (node.semantic.role === "boundary") return "initial";
+  if (node.semantic.role === "terminal") return "end";
+  if (node.semantic.role === "interaction") return node.semantic.interactionKind;
+  return node.semantic.role;
+}
+function semanticNodeLabel(node) {
+  const semantic = node.semantic;
+  const detail = semantic.role === "trigger" ? `${semantic.triggerType} trigger, ${semantic.inputMode} input`
+    : semantic.role === "interaction" ? `${semantic.interactionKind} ${semantic.state}`
+    : semantic.role === "terminal" ? `${semantic.outcome} terminal`
+    : semantic.role === "join" ? `${semantic.policy} join`
+    : semantic.role;
+  return `${node.label}, ${detail}, ${node.status || "pending"}`;
+}
+function semanticTags(node) {
+  const semantic = node.semantic;
+  if (semantic.role === "router") return semantic.routes.map((route) => `${route.selected ? "✓ " : ""}${route.label}`);
+  if (semantic.role === "fork") return semantic.branches.map((branch) => branch.label);
+  if (semantic.role === "join") return [`${semantic.policy} join`];
+  if (semantic.role === "trigger") return [semantic.triggerType, semantic.inputMode];
+  if (semantic.role === "interaction") return [semantic.state];
+  if (semantic.role === "terminal") return [semantic.outcome];
+  return [];
+}
+function semanticInspectorValues(node) {
+  const semantic = node.semantic;
+  if (semantic.role === "join") {
+    return { "Join policy": semantic.policy === "all" ? "All branches" : "Any branch" };
+  }
+  if (semantic.role === "merge") return { "Merge mode": "Exclusive route" };
+  if (semantic.role === "router") return { "Routing mode": "Exactly one route" };
+  if (semantic.role === "interaction") return { "Interaction state": semantic.state };
+  if (semantic.role === "terminal") return { "Terminal outcome": semantic.outcome };
+  return {};
+}
+function renderRunResult(value) {
+  const parsed = parseResult(value);
+  return parsed.isJson
+    ? inspectableJson(parsed.value, "Workflow result")
+    : highlightedJson(parsed.value);
+}
+function parseResult(value) {
+  if (typeof value !== "string") return { isJson: true, value };
+  try { return { isJson: true, value: JSON.parse(value) }; }
+  catch { return { isJson: false, value }; }
+}
+function tag(value) { return element("span", "node-tag", value); }
+function element(name, className = "", text = "") { const node = document.createElement(name); if (className) node.className = className; node.textContent = text; return node; }
+function section(label, content) { const wrapper = element("section", "inspector-section"); wrapper.append(element("h3", "", label), content); return wrapper; }
+function definitionList(values) { const list = element("dl", "inspector-grid"); for (const [label, value] of Object.entries(values)) list.append(element("dt", "", label), element("dd", "", String(value ?? "—"))); return list; }
+function iconFor(kind) { return ({ approval: "✓?", end: "✓", evaluation: "◇", fork: "⑂", gate: "◆", join: "⋈", merge: "▽", model: "✦", question: "?", router: "◇", trigger: "▶", workflow: "▣" })[kind] || "□"; }
+function positionBox(node, box) { Object.assign(node.style, { height: `${box.height}px`, left: `${box.x}px`, top: `${box.y}px`, width: `${box.width}px`, zIndex: String(box.zIndex) }); }
+function groupLabel(workflow, box) { if (box.kind !== "child-group") return box.label; const parent = renderNode(workflow.model, box.modelId, box.sourceNodeId); const kind = semanticKind(parent); return kind === "workflow" ? box.label : `${kind} · ${box.label}`; }
+function renderNode(model, modelId, sourceNodeId) { if (model.id === modelId) { const found = model.nodes.find((node) => node.id === sourceNodeId); if (found) return found; } for (const node of model.nodes) { if (!node.childWorkflow) continue; const found = renderNode(node.childWorkflow.model, modelId, sourceNodeId); if (found) return found; } }
+function findRenderNode(model, stepId) { for (const node of model.nodes) { if (node.id === stepId || stepId.endsWith(`.${node.id}`)) return node; if (node.childWorkflow) { const found = findRenderNode(node.childWorkflow.model, stepId); if (found) return found; } } }
