@@ -20,6 +20,7 @@ const packages = [
   "packages/shell/chat-shell-ui",
   "packages/sdk",
 ] as const;
+const registryPackages = ["packages/sdk"] as const;
 
 await rm(outDir, { force: true, recursive: true });
 await mkdir(packageDir, { recursive: true });
@@ -34,6 +35,8 @@ for (const directory of packages) {
 const registry = [];
 for (const directory of packages) {
   run("bun", ["run", "build"], path.join(root, directory));
+}
+for (const directory of registryPackages) {
   const source = path.join(root, directory);
   const stage = path.join(stageDir, directory.replaceAll("/", "-"));
   await cp(source, stage, { recursive: true, filter: (entry) => !/(?:^|\/)node_modules(?:\/|$)/.test(entry) });
