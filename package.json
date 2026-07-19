@@ -23,6 +23,7 @@
     "release:rehearse": "bun scripts/release.ts rehearse",
     "release:publish-next": "bun scripts/release.ts publish-next",
     "release:verify-next": "bun scripts/release.ts verify-next",
+    "release:repair-next-tags": "bun scripts/release.ts repair-next-tags",
     "release:promote-latest": "bun scripts/release.ts promote-latest",
     "test": "bun test packages/sdk",
     "typecheck": "bun run --cwd packages/sdk check"
