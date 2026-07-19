@@ -10,7 +10,7 @@ help:
 	@printf "  make release-verify-next  Verify the public @dromio/workflow@next package\n"
 
 setup:
-	@bun install --frozen-lockfile
+	@bun install --frozen-lockfile --ignore-scripts
 
 build:
 	@bun run build

@@ -31,6 +31,10 @@
     "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
     "check": "bun run validate && bun run typecheck && bun run test && bun run build"
   },
+  "devDependencies": {
+    "ajv": "8.18.0",
+    "ajv-formats": "3.0.1"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
