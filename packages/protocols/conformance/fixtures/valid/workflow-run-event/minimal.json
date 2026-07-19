@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "dromio.workflow-run-event.v1",
+  "workflowId": "workflow_builder",
+  "runId": "run_123",
+  "type": "workflow.run.progress",
+  "stepId": "draft_schemas",
+  "message": "Drafting schemas",
+  "index": 2,
+  "timestamp": "2026-06-18T12:11:00.000Z"
+}
+

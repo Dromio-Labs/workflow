@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-event/v1.schema.json",
+  "title": "Dromio Browser Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "sequence", "occurredAt", "type", "scope", "payload"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-event.v1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "type": { "enum": ["operation.started", "operation.completed", "operation.failed", "observation.invalidated", "tab.opened", "tab.closed", "artifact.available", "download.available", "console.recorded", "network.recorded", "session.disconnected", "session.restored"] },
+    "scope": { "$ref": "#/$defs/scope" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+    "payload": { "type": "object", "additionalProperties": true },
+    "nextCursor": { "type": "string", "minLength": 1, "maxLength": 256 }
+  },
+  "$defs": {
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenantId", "applicationId", "userId", "threadId"],
+      "properties": {
+        "tenantId": { "type": "string", "minLength": 1 },
+        "applicationId": { "type": "string", "minLength": 1 },
+        "userId": { "type": "string", "minLength": 1 },
+        "threadId": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -1,0 +1,219 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`loop engine golden trace step, retry, question, answer-resume, and completion trace is stable: golden-trace-event-sequence 1`] = `
+[
+  "run.started",
+  "step.created:classify",
+  "step.started:classify",
+  "checkpoint.created:classify",
+  "step.completed:classify",
+  "step.created:flaky-enrich",
+  "step.started:flaky-enrich",
+  "checkpoint.created:flaky-enrich",
+  "step.retrying:flaky-enrich",
+  "step.started:flaky-enrich",
+  "checkpoint.created:flaky-enrich",
+  "step.completed:flaky-enrich",
+  "step.created:clarify",
+  "step.started:clarify",
+  "checkpoint.created:clarify",
+  "hook.created:clarify",
+  "step.waiting:clarify",
+  "hook.waiting:clarify",
+  "question.requested:clarify",
+  "question.answered",
+  "hook.resumed",
+  "step.started:clarify",
+  "checkpoint.created:clarify",
+  "step.completed:clarify",
+  "step.created:finish",
+  "step.started:finish",
+  "checkpoint.created:finish",
+  "step.completed:finish",
+  "run.completed",
+]
+`;
+
+exports[`loop engine golden trace step, retry, question, answer-resume, and completion trace is stable: golden-trace-full 1`] = `
+[
+  {
+    "index": 0,
+    "message": "Run <run> started.",
+    "type": "run.started",
+  },
+  {
+    "index": 1,
+    "message": "Created classify.",
+    "stepId": "classify",
+    "type": "step.created",
+  },
+  {
+    "index": 2,
+    "message": "Starting classify.",
+    "stepId": "classify",
+    "type": "step.started",
+  },
+  {
+    "index": 3,
+    "message": "Checkpointed classify.",
+    "stepId": "classify",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 4,
+    "message": "Completed classify.",
+    "stepId": "classify",
+    "type": "step.completed",
+  },
+  {
+    "index": 5,
+    "message": "Created flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "step.created",
+  },
+  {
+    "index": 6,
+    "message": "Starting flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "step.started",
+  },
+  {
+    "index": 7,
+    "message": "Checkpointed flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 8,
+    "message": "Retry requested: transient enrichment failure",
+    "stepId": "flaky-enrich",
+    "type": "step.retrying",
+  },
+  {
+    "index": 9,
+    "message": "Starting flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "step.started",
+  },
+  {
+    "index": 10,
+    "message": "Checkpointed flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 11,
+    "message": "Completed flaky-enrich.",
+    "stepId": "flaky-enrich",
+    "type": "step.completed",
+  },
+  {
+    "index": 12,
+    "message": "Created clarify.",
+    "stepId": "clarify",
+    "type": "step.created",
+  },
+  {
+    "index": 13,
+    "message": "Starting clarify.",
+    "stepId": "clarify",
+    "type": "step.started",
+  },
+  {
+    "index": 14,
+    "message": "Checkpointed clarify.",
+    "stepId": "clarify",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 15,
+    "message": "Created hook clarify.reason.",
+    "stepId": "clarify",
+    "type": "hook.created",
+  },
+  {
+    "index": 16,
+    "message": "Waiting for 1 answer.",
+    "stepId": "clarify",
+    "type": "step.waiting",
+  },
+  {
+    "index": 17,
+    "message": "Waiting for hook clarify.reason.",
+    "stepId": "clarify",
+    "type": "hook.waiting",
+  },
+  {
+    "index": 18,
+    "message": "Waiting for 1 answer.",
+    "stepId": "clarify",
+    "type": "question.requested",
+  },
+  {
+    "index": 19,
+    "message": "Answered clarify.reason.",
+    "type": "question.answered",
+  },
+  {
+    "index": 20,
+    "message": "Resumed hook clarify.reason.",
+    "type": "hook.resumed",
+  },
+  {
+    "index": 21,
+    "message": "Starting clarify.",
+    "stepId": "clarify",
+    "type": "step.started",
+  },
+  {
+    "index": 22,
+    "message": "Checkpointed clarify.",
+    "stepId": "clarify",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 23,
+    "message": "Completed clarify.",
+    "stepId": "clarify",
+    "type": "step.completed",
+  },
+  {
+    "index": 24,
+    "message": "Created finish.",
+    "stepId": "finish",
+    "type": "step.created",
+  },
+  {
+    "index": 25,
+    "message": "Starting finish.",
+    "stepId": "finish",
+    "type": "step.started",
+  },
+  {
+    "index": 26,
+    "message": "Checkpointed finish.",
+    "stepId": "finish",
+    "type": "checkpoint.created",
+  },
+  {
+    "index": 27,
+    "message": "Completed finish.",
+    "stepId": "finish",
+    "type": "step.completed",
+  },
+  {
+    "index": 28,
+    "message": "Run <run> completed.",
+    "type": "run.completed",
+  },
+]
+`;
+
+exports[`loop engine golden trace checkpoints capture resumable state at the question boundary: golden-trace-checkpoint-steps 1`] = `
+[
+  "classify",
+  "flaky-enrich",
+  "flaky-enrich",
+  "clarify",
+]
+`;

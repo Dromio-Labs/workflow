@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-error/v1.schema.json",
+  "title": "Dromio Browser Error v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "operationId", "code", "message", "phase", "retryable"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-error.v1" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+    "code": { "enum": ["aborted", "approval-required", "connect-failed", "disconnected", "invalid-input", "not-found", "permission-denied", "policy-denied", "post-dispatch-uncertain", "protocol-failed", "quota-exceeded", "scope-denied", "stale-observation", "timeout", "unsupported"] },
+    "message": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "phase": { "enum": ["pre-dispatch", "post-dispatch-uncertain"] },
+    "retryable": { "type": "boolean" },
+    "details": { "type": "object", "additionalProperties": true }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "phase": { "const": "post-dispatch-uncertain" } }, "required": ["phase"] },
+      "then": { "properties": { "retryable": { "const": false } } }
+    }
+  ]
+}

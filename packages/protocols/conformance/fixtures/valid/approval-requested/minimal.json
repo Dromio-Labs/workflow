@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "dromio.approval-requested.v1",
+  "approvalId": "approval_123",
+  "roomId": "room_123",
+  "requesterParticipantId": "agent_builder",
+  "approverParticipantIds": ["human_owner"],
+  "title": "Approve workflow release",
+  "summary": "The workflow builder is asking to publish release rel_123.",
+  "createdAt": "2026-06-18T12:01:00.000Z"
+}
+

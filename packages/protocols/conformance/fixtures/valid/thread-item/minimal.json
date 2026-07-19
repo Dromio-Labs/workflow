@@ -1,0 +1,1 @@
+{"id":"item-1","threadId":"thread-1","ordinal":1,"createdAt":"2026-01-01T00:00:00Z","createdBy":{"type":"user","id":"user-1"},"type":"message","role":"user","author":{"type":"user","id":"user-1"},"content":[{"type":"text","text":"Hello"}],"status":"completed","revision":1,"contextVisibility":"model_and_user"}

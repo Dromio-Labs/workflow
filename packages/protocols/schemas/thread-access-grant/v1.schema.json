@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-access-grant/v1.schema.json",
+  "title": "Dromio Thread Access Grant v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "threadId", "principal", "role", "grantedBy", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.thread-access-grant.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "principal": { "$ref": "#/$defs/principal" },
+    "role": { "enum": ["viewer", "contributor", "moderator"] },
+    "grantedBy": { "$ref": "#/$defs/actor" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "revokedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "principal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": { "type": { "enum": ["user", "group", "service", "share_link"] }, "id": { "type": "string", "minLength": 1 } }
+    },
+    "actor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": { "type": { "enum": ["user", "service", "system", "share_link"] }, "id": { "type": "string", "minLength": 1 }, "displayName": { "type": "string" } }
+    }
+  }
+}

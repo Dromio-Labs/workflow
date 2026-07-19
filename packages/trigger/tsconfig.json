@@ -1,0 +1,1 @@
+{"extends":"../../tsconfig.json","compilerOptions":{"noEmit":true,"types":["bun"],"baseUrl":".","paths":{"@dromio/execution":["../execution/src/index.ts"],"@dromio/protocols":["../protocols/src/index.ts"],"@dromio/thread-service":["../thread/service/src/index.ts"]}},"include":["src/**/*.ts"],"exclude":["src/**/*.test.ts"]}

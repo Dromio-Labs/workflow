@@ -1,0 +1,9 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.dromio.dev/file-upload/v1.schema.json","title":"Dromio File Upload v1","type":"object","additionalProperties":false,
+  "required":["schemaVersion","id","fileId","tenantId","applicationId","status","expectedSize","expectedChecksum","parts","createdAt","expiresAt","version"],
+  "properties":{
+    "schemaVersion":{"const":"dromio.file-upload.v1"},"id":{"type":"string","minLength":1},"fileId":{"type":"string","minLength":1},"tenantId":{"type":"string","minLength":1},"applicationId":{"type":"string","minLength":1},"status":{"enum":["pending","completing","completed","aborted","expired"]},"expectedSize":{"type":"integer","minimum":0},"expectedChecksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},
+    "parts":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["partNumber","size","checksum","objectKey"],"properties":{"partNumber":{"type":"integer","minimum":1,"maximum":10000},"size":{"type":"integer","minimum":1},"checksum":{"type":"string","pattern":"^sha256:[0-9a-f]{64}$"},"objectKey":{"type":"string","minLength":1}}}},
+    "createdAt":{"type":"string","format":"date-time"},"expiresAt":{"type":"string","format":"date-time"},"version":{"type":"integer","minimum":1}
+  }
+}

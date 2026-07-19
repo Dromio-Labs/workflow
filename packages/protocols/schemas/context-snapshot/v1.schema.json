@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/context-snapshot/v1.schema.json",
+  "title": "Dromio Context Snapshot v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "executionRunId", "threadId", "turnId", "threadSequence", "modelId", "itemRevisionIds", "instructionRevisionIds", "summaryIds", "tokenBudget", "estimatedTokens", "policyVersion", "entries", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.context-snapshot.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "executionRunId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "turnId": { "type": "string", "minLength": 1 },
+    "threadSequence": { "type": "integer", "minimum": 0 },
+    "modelId": { "type": "string", "minLength": 1 },
+    "itemRevisionIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "instructionRevisionIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "summaryIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "tokenBudget": { "type": "integer", "minimum": 1 },
+    "estimatedTokens": { "type": "integer", "minimum": 0 },
+    "policyVersion": { "type": "string", "minLength": 1 },
+    "entries": { "type": "array", "items": { "$ref": "#/$defs/entry" } },
+    "createdAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "role", "content", "estimatedTokens"],
+      "properties": {
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "id"],
+          "properties": {
+            "type": { "enum": ["item_revision", "instruction_revision", "summary"] },
+            "id": { "type": "string", "minLength": 1 }
+          }
+        },
+        "role": { "enum": ["user", "assistant", "system", "developer", "tool"] },
+        "content": { "type": "array", "items": { "$ref": "https://schemas.dromio.dev/thread-item/v1.schema.json#/$defs/contentPart" } },
+        "estimatedTokens": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

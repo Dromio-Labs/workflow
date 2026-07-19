@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/user-thread-state/v1.schema.json",
+  "title": "Dromio User Thread State v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tenantId", "applicationId", "threadId", "userId", "lastReadItemOrdinal", "notificationLevel", "version", "updatedAt"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.user-thread-state.v1" },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "userId": { "type": "string", "minLength": 1 },
+    "lastReadItemOrdinal": { "type": "integer", "minimum": 0 },
+    "manuallyUnreadFromOrdinal": { "type": "integer", "minimum": 0 },
+    "pinnedAt": { "type": "string", "format": "date-time" },
+    "pinRank": { "type": "number" },
+    "hiddenAt": { "type": "string", "format": "date-time" },
+    "mutedUntil": { "type": "string", "format": "date-time" },
+    "notificationLevel": { "enum": ["all", "mentions", "important", "none"] },
+    "lastViewedAt": { "type": "string", "format": "date-time" },
+    "version": { "type": "integer", "minimum": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

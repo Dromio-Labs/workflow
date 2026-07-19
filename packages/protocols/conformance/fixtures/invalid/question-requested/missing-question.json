@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "dromio.question-requested.v1",
+  "questionId": "question_123",
+  "roomId": "room_123",
+  "requesterParticipantId": "agent_builder",
+  "createdAt": "2026-06-18T12:07:00.000Z"
+}
+

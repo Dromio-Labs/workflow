@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.thread-api-capabilities.v1","apiVersion":"v1","transports":{"http":true,"sse":true,"websocket":false},"features":{"explicitThreads":true,"privateUserFeed":true,"files":true,"search":true,"semanticSearch":false,"steering":false,"exports":true,"sharing":true},"limits":{"maxFileBytes":26214400}}

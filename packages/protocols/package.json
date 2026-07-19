@@ -1,0 +1,43 @@
+{
+  "name": "@dromio/protocols",
+  "version": "0.1.42",
+  "dromio": {
+    "stability": "beta"
+  },
+  "private": false,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./schemas/index": "./schemas/index.json",
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && bun build src/index.ts --target=node --format=cjs --outfile dist/index.cjs",
+    "prepack": "bun run build",
+    "validate": "bun scripts/validate-schemas.mjs",
+    "test": "bun test",
+    "typecheck": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit",
+    "check": "bun run validate && bun run typecheck && bun run test && bun run build"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dromio-Labs/workflow.git",
+    "directory": "packages/protocols"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

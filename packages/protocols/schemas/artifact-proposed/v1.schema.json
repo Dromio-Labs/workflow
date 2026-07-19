@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/artifact-proposed/v1.schema.json",
+  "title": "Dromio Artifact Proposed Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "artifactId", "roomId", "proposerParticipantId", "title", "kind", "proposedAt"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.artifact-proposed.v1"
+    },
+    "artifactId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflowId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflowRunId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "proposerParticipantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["file", "url", "record", "image", "code", "text", "json", "other"]
+    },
+    "uri": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mimeType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string"
+    },
+    "content": true,
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "proposedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
+

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/purge-receipt/v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "tenantId", "applicationId", "threadId", "deletedResources", "propagationTargets", "propagation", "status", "purgedAt", "purgedBy"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.purge-receipt.v1" },
+    "id": { "type": "string", "minLength": 1 },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "deletedResources": { "$ref": "#/$defs/counts" },
+    "propagationTargets": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+    "propagation": { "type": "object", "additionalProperties": { "$ref": "#/$defs/targetState" } },
+    "status": { "enum": ["pending", "completed"] },
+    "purgedAt": { "type": "string", "format": "date-time" },
+    "purgedBy": { "$ref": "#/$defs/actor" },
+    "completedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+    "targetState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["pending", "completed", "failed", "not_configured"] },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "deletedResources": { "$ref": "#/$defs/counts" },
+        "errorCode": { "type": "string", "minLength": 1 }
+      }
+    },
+    "actor": { "type": "object", "additionalProperties": false, "required": ["type", "id"], "properties": { "type": { "enum": ["user", "service", "system", "share_link"] }, "id": { "type": "string", "minLength": 1 }, "displayName": { "type": "string" } } }
+  }
+}

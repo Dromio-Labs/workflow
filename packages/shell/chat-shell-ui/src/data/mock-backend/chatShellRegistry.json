@@ -1,0 +1,555 @@
+{
+  "layoutSlots": [
+    {"id": "sidebar-default", "region": "sidebar", "rendererId": "shell.sidebar", "order": 10, "visible": true},
+    {"id": "window-chrome-default", "region": "windowChrome", "rendererId": "shell.window-chrome", "order": 20, "visible": true},
+    {"id": "timeline-default", "region": "timeline", "rendererId": "shell.timeline", "order": 30, "visible": true},
+    {"id": "composer-default", "region": "composer", "rendererId": "shell.composer", "order": 40, "visible": true},
+    {"id": "status-rail-default", "region": "statusRail", "rendererId": "shell.status-rail", "order": 50, "visible": true},
+    {"id": "side-panel-default", "region": "sidePanel", "rendererId": "shell.side-panel", "order": 60, "visible": true},
+    {"id": "settings-default", "region": "settings", "rendererId": "shell.settings", "order": 70, "visible": true},
+    {"id": "mac-overlays-default", "region": "overlays", "rendererId": "shell.overlays.mac-top", "order": 80, "visible": true}
+  ],
+  "window": {
+    "title": "Create an intelligent Gomoku (Five-in-a-Row) game where the ...",
+    "workspace": "gomoku-ai",
+    "branch": "upgrade/v3.0",
+    "appPicker": {
+      "id": "app-picker",
+      "sections": [
+        {
+          "id": "apps",
+          "items": [
+            {"id": "vs-code", "label": "VS Code", "value": "VS Code", "checked": true},
+            {"id": "cursor", "label": "Cursor", "value": "Cursor"},
+            {"id": "finer", "label": "Finer", "value": "Finer"},
+            {"id": "terminal", "label": "Terminal", "value": "Terminal"},
+            {"id": "ghostty", "label": "Ghostty", "value": "Ghostty"},
+            {"id": "xcode", "label": "Xcode", "value": "Xcode"},
+            {"id": "android-studio", "label": "Android Studio", "value": "Android Studio"}
+          ]
+        }
+      ]
+    },
+    "branchMenu": {
+      "id": "branch-menu",
+      "sections": [
+        {
+          "id": "branches",
+          "title": "Branch",
+          "items": [
+            {"id": "upgrade-v3", "label": "upgrade/v3.0", "value": "upgrade/v3.0", "icon": "branch", "checked": true},
+            {"id": "feat-gomoku", "label": "feat/gomoku-ai", "value": "feat/gomoku-ai", "icon": "branch"},
+            {"id": "main", "label": "main", "value": "main", "icon": "branch"}
+          ]
+        }
+      ]
+    },
+    "moreMenu": {
+      "id": "chat-actions-menu",
+      "sections": [
+        {
+          "id": "primary-chat-actions",
+          "items": [
+            {"id": "pin-chat", "label": "Pin chat", "icon": "pin", "shortcut": "⌥⌘P"},
+            {"id": "rename-chat", "label": "Rename chat", "icon": "pencil", "shortcut": "⌥⌘R"},
+            {"id": "archive-chat", "label": "Archive chat", "icon": "archive", "shortcut": "⇧⌘A"}
+          ]
+        },
+        {
+          "id": "secondary-chat-actions",
+          "items": [
+            {"id": "open-side-chat", "label": "Open side chat", "icon": "message-plus", "shortcut": "⌥⌘S"},
+            {"id": "copy", "label": "Copy", "icon": "copy", "submenuId": "copy"},
+            {"id": "fork", "label": "Fork", "icon": "fork", "submenuId": "fork"},
+            {"id": "add-scheduled-task", "label": "Add scheduled task...", "icon": "clock", "disabled": true}
+          ]
+        },
+        {
+          "id": "window-actions",
+          "items": [
+            {"id": "open-in-new-window", "label": "Open in new window", "icon": "external-window"}
+          ]
+        }
+      ],
+      "submenus": {
+        "copy": {
+          "id": "chat-actions-copy-menu",
+          "sections": [
+            {
+              "id": "copy-actions",
+              "items": [
+                {"id": "copy-working-directory", "label": "Copy working directory", "icon": "copy", "shortcut": "⇧⌘C"},
+                {"id": "copy-session-id", "label": "Copy session ID", "icon": "copy", "shortcut": "⌥⌘C"},
+                {"id": "copy-deeplink", "label": "Copy deeplink", "icon": "copy", "shortcut": "⌥⌘L"},
+                {"id": "copy-as-markdown", "label": "Copy as Markdown", "icon": "copy"}
+              ]
+            }
+          ]
+        },
+        "fork": {
+          "id": "chat-actions-fork-menu",
+          "sections": [
+            {
+              "id": "fork-actions",
+              "items": [
+                {"id": "fork-current-chat", "label": "Fork current chat", "icon": "fork"},
+                {"id": "fork-with-context", "label": "Fork with context", "icon": "fork"},
+                {"id": "fork-without-files", "label": "Fork without files", "icon": "fork"}
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "sidePanel": {
+      "inactiveTab": {
+        "icon": "file",
+        "label": "Open file"
+      },
+      "initialSurfaceId": "side-chat",
+      "tabMenuSurfaceIds": ["review", "terminal", "browser", "files", "side-chat"],
+      "surfaces": [
+        {
+          "surfaceId": "review",
+          "surfaceKind": "default-content",
+          "rendererId": "side-panel.default-content",
+          "label": "Review",
+          "icon": "file-diff",
+          "shortcut": "^⇧G",
+          "content": {
+            "title": "Review",
+            "body": "Mock review queue for this task.",
+            "items": [
+              {"label": "Changed files", "value": "3"},
+              {"label": "Open comments", "value": "0"},
+              {"label": "Ready to submit", "value": "Yes"}
+            ]
+          }
+        },
+        {
+          "surfaceId": "terminal",
+          "surfaceKind": "default-content",
+          "rendererId": "side-panel.default-content",
+          "label": "Terminal",
+          "icon": "terminal",
+          "content": {
+            "title": "Terminal",
+            "body": "Mock terminal session attached to the workspace.",
+            "items": [
+              {"label": "Shell", "value": "zsh"},
+              {"label": "Working directory", "value": "chatshell/v8"},
+              {"label": "Last command", "value": "npm run build"}
+            ]
+          }
+        },
+        {
+          "surfaceId": "browser",
+          "surfaceKind": "default-content",
+          "rendererId": "side-panel.default-content",
+          "label": "Browser",
+          "icon": "globe",
+          "shortcut": "⌘T",
+          "content": {
+            "title": "Browser",
+            "body": "Mock browser tab registry for preview surfaces.",
+            "items": [
+              {"label": "Preview URL", "value": "127.0.0.1:8210"},
+              {"label": "Viewport", "value": "1280×720"},
+              {"label": "Status", "value": "Connected"}
+            ]
+          }
+        },
+        {
+          "surfaceId": "files",
+          "surfaceKind": "default-content",
+          "rendererId": "side-panel.default-content",
+          "label": "Files",
+          "icon": "folder-open",
+          "shortcut": "⌘P",
+          "content": {
+            "title": "Files",
+            "body": "Mock project file picker.",
+            "items": [
+              {"label": "Composer.tsx", "value": "modified"},
+              {"label": "ChatShell.tsx", "value": "modified"},
+              {"label": "chatShell.json", "value": "modified"}
+            ]
+          }
+        },
+        {
+          "surfaceId": "side-chat",
+          "surfaceKind": "composer",
+          "rendererId": "side-panel.composer",
+          "label": "Side chat",
+          "icon": "message-plus",
+          "shortcut": "⌥⌘S",
+          "content": {
+            "title": "Side chat",
+            "body": "Mock side conversation for parallel notes.",
+            "items": [
+              {"label": "Participants", "value": "2"},
+              {"label": "Unread", "value": "0"},
+              {"label": "Mode", "value": "Contextual"}
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "user": {
+    "name": "Ryan Bot",
+    "email": "acme",
+    "avatar": "/images/hero-visual/avatar@2x.png",
+    "settingsMenu": {
+      "id": "user-settings-menu",
+      "sections": [
+        {
+          "id": "account",
+          "items": [
+            {"id": "account-email", "label": "acme", "icon": "target"},
+            {"id": "personal-account", "label": "Personal account", "icon": "settings", "disabled": true}
+          ]
+        },
+        {
+          "id": "primary-settings",
+          "items": [
+            {"id": "profile", "label": "Profile", "icon": "target"},
+            {"id": "settings", "label": "Settings", "icon": "settings", "shortcut": "⌘,"},
+            {"id": "invite-friend", "label": "Invite a friend", "icon": "spark"},
+            {"id": "usage-remaining", "label": "Usage remaining", "icon": "clock"},
+            {"id": "log-out", "label": "Log out", "icon": "external-window"}
+          ]
+        }
+      ]
+    }
+  },
+  "settings": {
+    "activeSectionId": "general",
+    "searchPlaceholder": "Search settings...",
+    "navSections": [
+      {
+        "id": "personal",
+        "title": "Personal",
+        "items": [
+          {"id": "general", "label": "General", "icon": "settings"},
+          {"id": "profile", "label": "Profile", "icon": "target"},
+          {"id": "appearance", "label": "Appearance", "icon": "spark"},
+          {"id": "configuration", "label": "Configuration", "icon": "shield"},
+          {"id": "personalization", "label": "Personalization", "icon": "clock"},
+          {"id": "pets", "label": "Pets", "icon": "target"},
+          {"id": "keyboard-shortcuts", "label": "Keyboard shortcuts", "icon": "square-chart"},
+          {"id": "usage-billing", "label": "Usage & billing", "icon": "globe"}
+        ]
+      },
+      {
+        "id": "integrations",
+        "title": "Integrations",
+        "items": [
+          {"id": "appshots", "label": "Appshots", "icon": "square-chart"},
+          {"id": "mcp-servers", "label": "MCP servers", "icon": "spark"},
+          {"id": "browser", "label": "Browser", "icon": "globe"},
+          {"id": "computer-use", "label": "Computer use", "icon": "wand"}
+        ]
+      },
+      {
+        "id": "coding",
+        "title": "Coding",
+        "items": [
+          {"id": "hooks", "label": "Hooks", "icon": "branch"},
+          {"id": "connections", "label": "Connections", "icon": "globe"},
+          {"id": "git", "label": "Git", "icon": "branch"},
+          {"id": "environments", "label": "Environments", "icon": "terminal"},
+          {"id": "worktrees", "label": "Worktrees", "icon": "folder"}
+        ]
+      },
+      {
+        "id": "archived",
+        "title": "Archived",
+        "items": [
+          {"id": "archived-chats", "label": "Archived chats", "icon": "archive"},
+          {"id": "chat-settings", "label": "Chat Settings", "icon": "message-plus", "external": true}
+        ]
+      }
+    ],
+    "general": {
+      "workModes": [
+        {"id": "coding", "label": "For coding", "description": "More technical responses and control", "icon": "terminal", "checked": true},
+        {"id": "everyday", "label": "For everyday work", "description": "Same power, less technical detail", "icon": "message-plus"}
+      ],
+      "permissionRows": [
+        {"id": "default-permissions", "label": "Default permissions", "description": "By default, Codex can read and edit files in its workspace. It can ask for additional access when needed", "control": "toggle", "enabled": true},
+        {"id": "auto-review", "label": "Auto-review", "description": "Codex can read and edit files in its workspace. Codex automatically reviews requests for additional access. Auto-review can make mistakes.", "control": "toggle", "enabled": true},
+        {"id": "full-access", "label": "Full access", "description": "When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval.", "control": "toggle", "enabled": true}
+      ],
+      "generalRows": [
+        {"id": "file-open-destination", "label": "Default file open destination", "description": "Where files and folders open by default", "control": "select", "options": ["VS Code", "Cursor", "Default app", "Finder", "Terminal", "Ghostty", "Xcode", "Android Studio"], "value": "VS Code"},
+        {"id": "language", "label": "Language", "description": "Language for the app UI", "control": "select", "options": ["Auto detect", "English", "Traditional Chinese", "Simplified Chinese", "Japanese", "Korean"], "value": "Auto detect"},
+        {"id": "show-menu-bar", "label": "Show in menu bar", "description": "Keep Codex in the macOS menu bar when the main window is closed", "control": "toggle", "enabled": true},
+        {"id": "bottom-panel", "label": "Bottom panel", "description": "Show the bottom panel control in the app header", "control": "toggle", "enabled": true},
+        {"id": "terminal-location", "label": "Default terminal location", "description": "Choose where the terminal shortcut and environment actions open terminal tabs", "control": "segmented", "options": ["Bottom", "Right"], "value": "Bottom"},
+        {"id": "prevent-sleep", "label": "Prevent sleep while running", "description": "Keep your computer awake while Codex is running a chat", "control": "toggle", "enabled": false},
+        {"id": "speed", "label": "Speed", "description": "Choose how quickly Codex runs across chats, subagents, and compaction", "control": "select", "options": ["Standard", "Fast", "Thorough"], "value": "Standard"}
+      ]
+    }
+  },
+  "navActions": [
+    {"id": "new-chat", "label": "New Task", "icon": "message-plus"},
+    {"id": "open-workspace", "label": "Open Workspace", "icon": "folder-plus"},
+    {"id": "skills", "label": "Skills", "icon": "wand"}
+  ],
+  "sidebar": {
+    "tasksTitle": "Tasks",
+    "archiveToggle": {"id": "toggle-archived", "label": "Toggle archived tasks", "icon": "archive"},
+    "contextMenus": {
+      "task": {
+        "id": "thread-context-menu",
+        "sections": [
+          {"id": "primary", "items": [
+            {"id": "pin-chat", "label": "Pin chat", "icon": "pin"},
+            {"id": "rename-chat", "label": "Rename chat", "icon": "pencil"},
+            {"id": "archive-chat", "label": "Archive chat", "icon": "archive"},
+            {"id": "mark-unread", "label": "Mark as unread", "icon": "clock"}
+          ]},
+          {"id": "copy", "items": [
+            {"id": "reveal-finder", "label": "Reveal in Finder", "icon": "folder-open"},
+            {"id": "copy-working-directory", "label": "Copy working directory", "icon": "copy"},
+            {"id": "copy-session-id", "label": "Copy session ID", "icon": "copy"},
+            {"id": "copy-deeplink", "label": "Copy deeplink", "icon": "copy"}
+          ]},
+          {"id": "fork", "items": [
+            {"id": "fork-local", "label": "Fork into local", "icon": "fork"},
+            {"id": "fork-worktree", "label": "Fork into new worktree", "icon": "branch"}
+          ]},
+          {"id": "window", "items": [
+            {"id": "open-new-window", "label": "Open in new window", "icon": "external-window"}
+          ]}
+        ]
+      },
+      "workspace": {
+        "id": "workspace-context-menu",
+        "sections": [
+          {"id": "project", "items": [
+            {"id": "pin-project", "label": "Pin project", "icon": "pin"},
+            {"id": "reveal-finder", "label": "Reveal in Finder", "icon": "folder-open"},
+            {"id": "create-worktree", "label": "Create permanent worktree", "icon": "external-window"},
+            {"id": "rename-project", "label": "Rename project", "icon": "pencil"},
+            {"id": "archive-chats", "label": "Archive chats", "icon": "archive"},
+            {"id": "remove", "label": "Remove", "icon": "x"}
+          ]}
+        ]
+      }
+    }
+  },
+  "status": {
+    "git": {
+      "additions": 734,
+      "deletions": 7,
+      "branch": "feat/gomoku-ai"
+    },
+    "goal": {
+      "title": "Gomoku vs. AI — implement computer moves with a heuristic algorithm",
+      "status": "Complete",
+      "subtitle": "5/5 · 2m · 89K tokens"
+    },
+    "progress": [
+      {"id": "progress-board", "label": "Initialize board, piece rendering, and the 15×15 grid layout", "status": "done"},
+      {"id": "progress-player", "label": "Implement player move interaction and win-detection logic", "status": "done"},
+      {"id": "progress-ai", "label": "Integrate a heuristic AI for automatic computer moves", "status": "done"},
+      {"id": "progress-mobile", "label": "Adapt board scaling and portrait/landscape layout for mobile", "status": "done"},
+      {"id": "progress-rules", "label": "Add rules copy, restart entry points, and empty-state guidance", "status": "done"}
+    ],
+    "sections": [
+      {
+        "id": "git-tools",
+        "title": "Git tools",
+        "rows": [
+          {"id": "changes", "kind": "action", "label": "Changes", "icon": "file-diff", "additions": 734, "deletions": 7},
+          {
+            "id": "branch",
+            "kind": "branch",
+            "label": "feat/gomoku-ai",
+            "icon": "branch",
+            "trailingIcon": "chevron-down",
+            "menu": {
+              "id": "status-branch-menu",
+              "sections": [
+                {
+                  "id": "branches",
+                  "items": [
+                    {"id": "feat-gomoku", "label": "feat/gomoku-ai", "value": "feat/gomoku-ai", "icon": "branch", "checked": true},
+                    {"id": "upgrade-v3", "label": "upgrade/v3.0", "value": "upgrade/v3.0", "icon": "branch"},
+                    {"id": "main", "label": "main", "value": "main", "icon": "branch"}
+                  ]
+                }
+              ]
+            }
+          },
+          {"id": "commit", "kind": "commit", "label": "Commit", "icon": "commit", "trailingIcon": "more"}
+        ]
+      },
+      {
+        "id": "goal",
+        "title": "Goal",
+        "status": "Complete",
+        "rows": [
+          {
+            "id": "goal-current",
+            "kind": "goal",
+            "label": "Gomoku vs. AI — implement computer moves with a heuristic algorithm",
+            "icon": "target",
+            "metadata": ["5/5", "2m", "89K tokens"]
+          }
+        ]
+      },
+      {
+        "id": "progress",
+        "title": "Progress",
+        "rows": [
+          {"id": "progress-board", "kind": "progress", "label": "Initialize board, piece rendering, and the 15×15 grid layout", "icon": "check", "status": "done"},
+          {"id": "progress-player", "kind": "progress", "label": "Implement player move interaction and win-detection logic", "icon": "check", "status": "done"},
+          {"id": "progress-ai", "kind": "progress", "label": "Integrate a heuristic AI for automatic computer moves", "icon": "check", "status": "done"},
+          {"id": "progress-mobile", "kind": "progress", "label": "Adapt board scaling and portrait/landscape layout for mobile", "icon": "check", "status": "done"},
+          {"id": "progress-rules", "kind": "progress", "label": "Add rules copy, restart entry points, and empty-state guidance", "icon": "check", "status": "done"}
+        ]
+      }
+    ]
+  },
+  "composer": {
+    "placeholder": "Ask for follow-up changes",
+    "approvalMode": "Ask before changes",
+    "model": "GPT-5.5",
+    "reasoning": "High",
+    "approvalMenu": {
+      "id": "approval-menu",
+      "sections": [
+        {
+          "id": "approval-options",
+          "title": "How should Codex actions be approved?",
+          "items": [
+            {"id": "ask", "label": "Ask for approval", "description": "Always ask to edit external files and use the internet.", "icon": "shield", "checked": true, "value": "Ask before changes"},
+            {"id": "approve", "label": "Approve for me", "description": "Only ask for actions detected as potentially unsafe.", "icon": "shield", "value": "Approve for me"},
+            {"id": "full", "label": "Full access", "description": "Unrestricted access to the internet and any file on your computer.", "icon": "shield", "value": "Full access"},
+            {"id": "custom", "label": "Custom", "description": "Use your workspace-defined approval rules.", "icon": "settings", "value": "Custom"}
+          ]
+        }
+      ]
+    },
+    "addMenu": {
+      "id": "add-menu",
+      "sections": [
+        {
+          "id": "add",
+          "title": "Add",
+          "items": [
+            {"id": "files", "label": "Files and folders", "icon": "file"},
+            {"id": "browser", "label": "Attach Brave Browser", "icon": "globe"},
+            {"id": "goal", "label": "Goal", "description": "Set a goal that Codex will keep working towards", "icon": "target"},
+            {"id": "plan", "label": "Plan mode", "description": "Turn plan mode on", "icon": "plan"}
+          ]
+        },
+        {
+          "id": "agents",
+          "title": "Agents",
+          "items": [
+            {"id": "euler", "label": "Euler", "icon": "spark"},
+            {"id": "tesla", "label": "Tesla", "description": "explorer", "icon": "spark"},
+            {"id": "kuhn", "label": "Kuhn", "icon": "spark"},
+            {"id": "galileo", "label": "Galileo", "icon": "spark"}
+          ]
+        },
+        {
+          "id": "plugins",
+          "title": "Plugins",
+          "items": [
+            {"id": "github", "label": "GitHub", "icon": "globe"},
+            {"id": "linear", "label": "Linear", "icon": "list"}
+          ]
+        }
+      ]
+    },
+    "modelMenu": {
+      "id": "model-menu",
+      "sections": [
+        {
+          "id": "models",
+          "title": "Model",
+          "items": [
+            {"id": "gpt-55", "label": "GPT-5.5", "value": "GPT-5.5", "checked": true},
+            {"id": "gpt-54", "label": "GPT-5.4", "value": "GPT-5.4"},
+            {"id": "gpt-54-mini", "label": "GPT-5.4-Mini", "value": "GPT-5.4-Mini"},
+            {"id": "gpt-53-codex-spark", "label": "GPT-5.3-Codex-Spark", "value": "GPT-5.3-Codex-Spark"}
+          ]
+        }
+      ]
+    },
+    "reasoningMenu": {
+      "id": "reasoning-menu",
+      "sections": [
+        {
+          "id": "reasoning",
+          "title": "Reasoning",
+          "items": [
+            {"id": "light", "label": "Light", "value": "Light"},
+            {"id": "medium", "label": "Medium", "value": "Medium"},
+            {"id": "high", "label": "High", "value": "High", "checked": true},
+            {"id": "extra-high", "label": "Extra High", "value": "Extra High"}
+          ]
+        },
+        {
+          "id": "nested",
+          "items": [
+            {"id": "gpt-55", "label": "GPT-5.5", "submenuId": "model"},
+            {"id": "speed", "label": "Speed", "submenuId": "speed"}
+          ]
+        }
+      ]
+    },
+    "speedMenu": {
+      "id": "speed-menu",
+      "sections": [
+        {
+          "id": "speed",
+          "title": "Speed",
+          "items": [
+            {"id": "standard", "label": "Standard", "description": "Default speed", "value": "Standard", "checked": true},
+            {"id": "fast", "label": "Fast", "description": "1.5x speed, increased usage", "value": "Fast", "icon": "spark"}
+          ]
+        }
+      ]
+    },
+    "contextUsage": {
+      "ariaLabel": "Context usage 14,238 of 200,000"
+    },
+    "promptCommands": {
+      "slash": [
+        {"description": "Review unstaged changes or compare against a branch", "icon": "shield", "id": "code-review", "label": "Code review", "value": "/review "},
+        {"description": "Compact this thread's context", "icon": "commit", "id": "compact", "label": "Compact", "value": "/compact "},
+        {"description": "Send feedback about this chat", "icon": "message-plus", "id": "feedback", "label": "Feedback", "value": "/feedback "},
+        {"description": "Fork this chat into local or a new worktree", "icon": "fork", "id": "fork", "label": "Fork", "value": "/fork "},
+        {"description": "Set a goal that Codex will keep working towards", "icon": "target", "id": "goal", "label": "Goal", "value": "/goal "},
+        {"description": "Include current selection, open files, and other context from your IDE", "icon": "spark", "id": "ide-context", "label": "IDE context", "value": "/ide "},
+        {"description": "Create an AGENTS.md file with instructions for Codex", "icon": "file", "id": "init", "label": "Init", "value": "/init "},
+        {"description": "Show MCP server status", "icon": "globe", "id": "mcp", "label": "MCP", "value": "/mcp "},
+        {"description": "Generate on", "icon": "settings", "id": "memories", "label": "Memories", "value": "/memory "},
+        {"description": "Choose how Codex responds", "icon": "wand", "id": "personality", "label": "Personality", "value": "/personality "},
+        {"description": "Wake or tuck away the desktop pet", "icon": "clock", "id": "pet", "label": "Pet", "value": "/pet "}
+      ],
+      "skills": [
+        {"description": "Generate or edit images for websites, games, and more", "icon": "package", "id": "imagegen", "label": "Image Gen", "shortcut": "System", "value": "$imagegen "},
+        {"description": "Reference OpenAI docs, Codex self-knowledge, and model migration guidance", "icon": "package", "id": "openai-docs", "label": "OpenAI Docs", "shortcut": "System", "value": "$openai-docs "},
+        {"description": "Scaffold plugins and marketplace entries", "icon": "package", "id": "plugin-creator", "label": "Plugin Creator", "shortcut": "System", "value": "$plugin-creator "},
+        {"description": "Create or update a skill", "icon": "package", "id": "skill-creator", "label": "Skill Creator", "shortcut": "System", "value": "$skill-creator "},
+        {"description": "Install curated skills from openai/skills or other repos", "icon": "package", "id": "skill-installer", "label": "Skill Installer", "shortcut": "System", "value": "$skill-installer "}
+      ],
+      "mentionAdd": [
+        {"description": "Attach files or folders as context", "icon": "folder-open", "id": "files", "label": "Files and folders", "value": "@files "},
+        {"description": "Attach a captured app snapshot", "disabled": true, "icon": "square-chart", "id": "appshot", "label": "Attach appshot", "value": "@appshot "},
+        {"description": "Set a goal that Codex will keep working towards", "icon": "target", "id": "goal", "label": "Goal", "value": "@goal "},
+        {"description": "Turn plan mode on", "icon": "plan", "id": "plan-mode", "label": "Plan mode", "value": "@plan "}
+      ],
+      "mentionFiles": [
+        {"disabled": true, "id": "search-files-chats", "label": "Type to search files or chats"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/message-revision/v1.schema.json",
+  "title": "Dromio Message Revision v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "messageId", "revision", "content", "createdAt", "createdBy", "reason"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "messageId": { "type": "string", "minLength": 1 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "content": { "type": "array", "items": { "$ref": "https://schemas.dromio.dev/thread-item/v1.schema.json#/$defs/contentPart" } },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" },
+    "reason": { "enum": ["creation", "author_edit", "withdrawal", "redaction", "deletion", "migration"] }
+  }
+}

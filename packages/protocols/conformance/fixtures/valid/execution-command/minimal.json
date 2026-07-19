@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.execution-command.v1","commandId":"execution-command-1","correlationId":"correlation-1","requestId":"request-1","operation":"execute_thread_turn","tenantId":"tenant-1","applicationId":"app-1","threadId":"thread-1","turnId":"turn-1","turnOrdinal":1,"generation":1,"createdAt":"2026-01-01T00:00:00Z"}

@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": ["ES2023", "DOM"],
+    "types": []
+  },
+  "include": [
+    "packages/protocols/src/**/*.ts",
+    "packages/runtime/mode-enabler/src/**/*.ts",
+    "scripts/**/*.mjs"
+  ],
+  "exclude": [
+    "packages/*/src/**/*.test.ts"
+  ]
+}

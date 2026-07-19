@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-feature-set/v1.schema.json",
+  "title": "Dromio Browser Feature Set v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "backend", "features", "operationIds"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-feature-set.v1" },
+    "backend": { "enum": ["managed", "remote"] },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["feature", "status"],
+        "properties": {
+          "feature": { "enum": ["inspect", "interaction", "tabs", "files", "state", "diagnostics", "network", "emulation", "recording", "remote"] },
+          "status": { "enum": ["supported", "unsupported", "disabled"] },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 256 }
+        }
+      }
+    },
+    "operationIds": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" } }
+  }
+}

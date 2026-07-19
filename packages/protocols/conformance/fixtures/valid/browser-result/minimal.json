@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.browser-result.v1","requestId":"request-1","operationId":"browser.page.navigate","status":"completed","output":{"url":"https://example.test"},"observation":{"observationId":"observation-1","tabId":"tab-1","frameId":"frame-1","url":"https://example.test","title":"Example","revision":1},"artifacts":[]}

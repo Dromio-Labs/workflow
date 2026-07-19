@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-event/v1.schema.json",
+  "title": "Dromio Thread Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "type", "tenantId", "applicationId", "threadId", "sequence", "applicationSequence", "timestamp", "correlationId", "payload"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.thread-event.v1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "type": { "enum": ["thread.created", "thread.updated", "thread.archived", "thread.unarchived", "thread.deleted", "thread.forked", "thread.migrated", "thread.access.changed", "item.created", "item.revised", "item.withdrawn", "item.deleted", "item.redacted", "message.output_text.delta", "tool_call.changed", "turn.queued", "turn.eligible", "turn.started", "turn.waiting_for_approval", "turn.waiting_for_input", "turn.completed", "turn.failed", "turn.cancelling", "turn.cancelled", "interaction.created", "interaction.resolved", "interaction.expired", "file.changed", "context.summary.changed"] },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "applicationSequence": { "type": "integer", "minimum": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "commandId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  }
+}

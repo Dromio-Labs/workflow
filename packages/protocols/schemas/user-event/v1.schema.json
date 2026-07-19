@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/user-event/v1.schema.json",
+  "title": "Dromio Private User Event v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "eventId", "type", "tenantId", "applicationId", "userId", "threadId", "sequence", "timestamp", "correlationId", "requestId", "commandId", "payload"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.user-event.v1" },
+    "eventId": { "type": "string", "minLength": 1 },
+    "type": { "enum": ["user_state.updated", "draft.saved", "draft.deleted"] },
+    "tenantId": { "type": "string", "minLength": 1 },
+    "applicationId": { "type": "string", "minLength": 1 },
+    "userId": { "type": "string", "minLength": 1 },
+    "threadId": { "type": "string", "minLength": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "minLength": 1 },
+    "requestId": { "type": "string", "minLength": 1 },
+    "commandId": { "type": "string", "minLength": 1 },
+    "causationId": { "type": "string", "minLength": 1 },
+    "payload": { "type": "object" }
+  }
+}

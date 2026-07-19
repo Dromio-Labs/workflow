@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/question-requested/v1.schema.json",
+  "title": "Dromio Question Requested Payload v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "questionId", "roomId", "requesterParticipantId", "question", "createdAt"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.question-requested.v1"
+    },
+    "questionId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "roomId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflowId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflowRunId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "requesterParticipantId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assigneeParticipantIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
+

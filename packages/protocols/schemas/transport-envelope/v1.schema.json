@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/transport-envelope/v1.schema.json",
+  "title": "Dromio Transport Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "transport", "direction", "messageType", "time", "payload"],
+  "properties": {
+    "schemaVersion": {
+      "const": "dromio.transport-envelope.v1"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "transport": {
+      "type": "string",
+      "enum": ["rest-sse", "json-rpc-stdio", "json-rpc-websocket", "mcp-tools", "in-process"]
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["client-to-host", "host-to-client"]
+    },
+    "messageType": {
+      "type": "string",
+      "enum": ["command", "event", "result", "error", "snapshot", "heartbeat"]
+    },
+    "time": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
+

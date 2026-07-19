@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.backup-purge-ledger-entry.v1","id":"ledger-1","tenantId":"tenant-1","applicationId":"app-1","threadId":"thread-1","backupExpiresAt":"2026-02-01T00:00:00Z","recordedAt":"2026-01-01T00:00:01Z"}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "dromio.room-snapshot.v1",
+  "roomId": "room_123",
+  "status": "paused",
+  "participants": [],
+  "messages": [],
+  "hands": [],
+  "approvals": [],
+  "artifacts": [],
+  "decisions": [],
+  "updatedAt": "2026-06-18T12:03:00.000Z"
+}
+

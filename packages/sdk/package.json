@@ -1,0 +1,189 @@
+{
+  "name": "@dromio/workflow",
+  "version": "0.1.0",
+  "private": false,
+  "dromio": {
+    "stability": "beta"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/src/sdk/index.d.ts",
+      "import": "./dist/src/sdk/index.js"
+    },
+    "./app": {
+      "types": "./dist/src/sdk/client/interactions/workflow-app.d.ts",
+      "import": "./dist/src/sdk/client/interactions/workflow-app.js"
+    },
+    "./core": {
+      "types": "./dist/src/sdk/core/index.d.ts",
+      "import": "./dist/src/sdk/core/index.js"
+    },
+    "./workflow-control-plane": {
+      "types": "./dist/src/sdk/workflow-control-plane/index.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/index.js"
+    },
+    "./workflow-control-plane/control-plane": {
+      "types": "./dist/src/sdk/workflow-control-plane/control-plane.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/control-plane.js"
+    },
+    "./workflow-control-plane/http": {
+      "types": "./dist/src/sdk/workflow-control-plane/http.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/http.js"
+    },
+    "./workflow-control-plane/in-memory-signal-store": {
+      "types": "./dist/src/sdk/workflow-control-plane/in-memory-signal-store.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/in-memory-signal-store.js"
+    },
+    "./workflow-control-plane/json-trigger-store": {
+      "types": "./dist/src/sdk/workflow-control-plane/json-trigger-store.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/json-trigger-store.js"
+    },
+    "./workflow-control-plane/runtime-store-contracts": {
+      "types": "./dist/src/sdk/workflow-control-plane/runtime-store-contracts.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/runtime-store-contracts.js"
+    },
+    "./workflow-control-plane/runtime-store-conformance": {
+      "types": "./dist/src/sdk/workflow-control-plane/runtime-store-conformance.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/runtime-store-conformance.js"
+    },
+    "./workflow-control-plane/sqlite-runtime-store": {
+      "types": "./dist/src/sdk/workflow-control-plane/sqlite-runtime-store.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/sqlite-runtime-store.js"
+    },
+    "./workflow-control-plane/types": {
+      "types": "./dist/src/sdk/workflow-control-plane/types.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/types.js"
+    },
+    "./workflow-control-plane/worker": {
+      "types": "./dist/src/sdk/workflow-control-plane/worker.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/worker.js"
+    },
+    "./distribution": {
+      "types": "./dist/src/sdk/distribution/index.d.ts",
+      "import": "./dist/src/sdk/distribution/index.js"
+    },
+    "./init/workbench": {
+      "types": "./dist/src/sdk/init/workbench.d.ts",
+      "import": "./dist/src/sdk/init/workbench.js"
+    },
+    "./agents/runtime": {
+      "types": "./dist/src/sdk/agents/runtime/index.d.ts",
+      "import": "./dist/src/sdk/agents/runtime/index.js"
+    },
+    "./client-surfaces": {
+      "types": "./dist/src/sdk/client-surfaces/index.d.ts",
+      "import": "./dist/src/sdk/client-surfaces/index.js"
+    },
+    "./product": {
+      "types": "./dist/src/sdk/product/index.d.ts",
+      "import": "./dist/src/sdk/product/index.js"
+    },
+    "./tools/surface": {
+      "types": "./dist/src/sdk/tools/surface/index.d.ts",
+      "import": "./dist/src/sdk/tools/surface/index.js"
+    },
+    "./client": {
+      "types": "./dist/src/sdk/client/index.d.ts",
+      "import": "./dist/src/sdk/client/index.js",
+      "require": "./dist/cjs/client/index.cjs"
+    },
+    "./client/workflow-render": {
+      "types": "./dist/src/sdk/client/workflow-render/index.d.ts",
+      "import": "./dist/src/sdk/client/workflow-render/index.js",
+      "require": "./dist/cjs/client/workflow-render/index.cjs"
+    },
+    "./client/workflow-field-svg": {
+      "types": "./dist/src/sdk/client/workflow-field-svg/index.d.ts",
+      "import": "./dist/src/sdk/client/workflow-field-svg/index.js",
+      "require": "./dist/cjs/client/workflow-field-svg/index.cjs"
+    },
+    "./client/workflow-room": {
+      "types": "./dist/src/sdk/client/workflow-room/index.d.ts",
+      "import": "./dist/src/sdk/client/workflow-room/index.js",
+      "require": "./dist/cjs/client/workflow-room/index.cjs"
+    },
+    "./client/opentui-merman": {
+      "types": "./dist/src/sdk/client/interactions/workflow-opentui-merman-renderer.d.ts",
+      "import": "./dist/src/sdk/client/interactions/workflow-opentui-merman-renderer.js"
+    },
+    "./client/workflow-tui-test-surface": {
+      "types": "./dist/src/sdk/client/workflow-tui-test-surface.d.ts",
+      "import": "./dist/src/sdk/client/workflow-tui-test-surface.js"
+    },
+    "./client/workflow-tui-shell-test-surface": {
+      "types": "./dist/src/sdk/client/workflow-tui-shell-test-surface.d.ts",
+      "import": "./dist/src/sdk/client/workflow-tui-shell-test-surface.js"
+    },
+    "./react": {
+      "types": "./dist/src/sdk/react/index.d.ts",
+      "import": "./dist/src/sdk/react/index.js",
+      "require": "./dist/cjs/react/index.cjs"
+    },
+    "./config": {
+      "types": "./dist/src/sdk/config/index.d.ts",
+      "import": "./dist/src/sdk/config/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run build:dependencies && bun scripts/build-package.ts",
+    "build:dependencies": "(cd ../shell/chat-shell-ui && bun run build) && (cd ../protocols && bun run build) && (cd ../workflow/canvas-protocol && bun run build) && (cd ../room/protocol && bun run build) && (cd ../execution && bun run build) && (cd ../thread/service && bun run build) && (cd ../trigger && bun run build) && (cd ../workflow/kernel && bun run build)",
+    "prepack": "bun run build",
+    "verify:package": "bun scripts/verify-package.ts",
+    "test": "bun test",
+    "check": "(cd ../shell/chat-shell-ui && bun run build) && (cd ../protocols && bun run build) && (cd ../room/protocol && bun run build) && (cd ../execution && bun run build) && (cd ../thread/service && bun run build) && (cd ../trigger && bun run build) && (cd ../workflow/kernel && bun run build) && bun run check:maintainability && bun run check:sdk-boundary && tsc --noEmit && bun run check:runtime-store && bun scripts/check-public-demo-determinism.ts",
+    "check:maintainability": "node ../../scripts/maintainability-lint.mjs --scope workflow",
+    "check:api": "bun scripts/check-api.ts",
+    "check:sdk-boundary": "bun scripts/check-sdk-boundary.ts",
+    "check:runtime-store": "bun test ./tests/sdk/artifact-http.test.ts ./tests/sdk/runtime-store-conformance.test.ts",
+    "check:tui-pty": "bun scripts/check-workflow-tui-pty.ts"
+  },
+  "dependencies": {
+    "@dromio/chat-shell-ui": "workspace:*",
+    "@dromio/execution": "workspace:*",
+    "@dromio/protocols": "workspace:*",
+    "@dromio/thread-service": "workspace:*",
+    "@dromio/trigger": "workspace:*",
+    "@dromio/workflow-canvas-protocol": "workspace:*",
+    "@dromio/workflow-kernel": "workspace:*",
+    "@dromio/workflow-room-protocol": "workspace:*",
+    "@json-render/core": "^0.19.0",
+    "@json-render/react": "^0.19.0",
+    "@kitlangton/merman": "0.1.1",
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@opentui/core": "0.2.6",
+    "@opentui/solid": "0.2.6",
+    "ajv": "^8.20.0",
+    "effect": "3.21.2",
+    "react-resizable-panels": "^4.12.1",
+    "solid-js": "1.9.12",
+    "web-tree-sitter": "0.25.10",
+    "zod": "^4.1.12"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/babel__core": "7.20.5",
+    "@types/bun": "latest",
+    "@types/node": "latest",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "typescript": "^5.9.3"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dromio-Labs/workflow.git",
+    "directory": "packages/sdk"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "name": "@dromio/chat-shell-ui",
+  "version": "0.1.9",
+  "dromio": {
+    "stability": "beta"
+  },
+  "description": "Backend-driven React chat shell UI package maintained as first-party Dromio source.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Dromio-Labs/workflow.git",
+    "directory": "packages/shell/chat-shell-ui"
+  },
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "module": "./dist/chat-shell.js",
+  "types": "./dist/chat-shell.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/chat-shell.d.ts",
+      "import": "./dist/chat-shell.js"
+    },
+    "./chat-shell": {
+      "types": "./dist/chat-shell.d.ts",
+      "import": "./dist/chat-shell.js"
+    },
+    "./chat-shell-contracts": {
+      "types": "./dist/chat-shell-contracts.d.ts",
+      "import": "./dist/chat-shell-contracts.js"
+    },
+    "./chat-shell-contracts/v1": {
+      "types": "./dist/chat-shell-contracts-v1.d.ts",
+      "import": "./dist/chat-shell-contracts/v1.js"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "sideEffects": [
+    "./dist/styles.css"
+  ],
+  "scripts": {
+    "dev": "bun run build && vite --host 127.0.0.1 --port 8210",
+    "build": "vite build --config vite.lib.config.ts && node scripts/build-package-css.mjs && tsc --emitDeclarationOnly -p tsconfig.lib.json",
+    "check": "bun run build && bun run check:contract && bun run check:ssr && bun run test:unit",
+    "check:contract": "tsc --noEmit -p tsconfig.app.json",
+    "check:css": "node scripts/check-css-parity.mjs",
+    "check:events": "node scripts/check-event-coverage.mjs",
+    "check:examples": "node scripts/check-examples.mjs",
+    "check:package": "bun run check:package:boundary && bun run check:css && bun run check:package:api && bun run check:package:api-surface && bun run check:package:peers && bun run check:theme && bun run check:package:budget && bun run check:package:ssr && bun run check:package:pack && bun run check:package:consumer && bun run check:package:examples-install && bun run check:package:nextjs-example && bun run check:examples && bun run check:variants && bun run check:events",
+    "check:package:api": "node scripts/check-package-public-api.mjs",
+    "check:package:api-surface": "node scripts/check-package-api-surface.mjs",
+    "check:package:boundary": "node scripts/check-package-boundary.mjs",
+    "check:package:budget": "node scripts/check-package-budget.mjs",
+    "check:package:pack": "node scripts/check-package-pack-output.mjs",
+    "check:package:peers": "node scripts/check-package-peer-deps.mjs",
+    "check:package:ssr": "node scripts/check-package-ssr.mjs",
+    "check:ssr": "node scripts/check-package-ssr.mjs",
+    "check:theme": "node scripts/check-theme-token-coverage.mjs",
+    "check:variants": "node scripts/check-variant-coverage.mjs",
+    "preview": "vite preview --host 127.0.0.1 --port 8211",
+    "test": "bun run test:unit",
+    "test:e2e": "playwright test",
+    "test:unit": "vitest run --config scripts/vitest.unit.config.mjs",
+    "test:visual": "playwright test tests/e2e/chat-shell.visual.spec.ts",
+    "check:package:consumer": "node scripts/check-package-isolated-consumer.mjs",
+    "check:package:examples-install": "node scripts/check-package-examples-install.mjs",
+    "check:package:nextjs-example": "node scripts/check-package-nextjs-example.mjs",
+    "check:package:nextjs-host-run": "node scripts/check-package-nextjs-host-run.mjs",
+    "check:package:target-host-run": "node scripts/check-package-target-host-run.mjs"
+  },
+  "dependencies": {
+    "react-resizable-panels": "^4.12.1",
+    "zod": "^4.4.3"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0 || ^19.0.0",
+    "react-dom": "^18.3.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@shikijs/core": "3.23.0",
+    "@shikijs/engine-javascript": "3.23.0",
+    "@shikijs/langs": "3.23.0",
+    "@shikijs/themes": "3.23.0",
+    "@tailwindcss/cli": "4.1.17",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "jsdom": "^29.1.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-scan": "^0.5.7",
+    "streamdown": "2.5.0",
+    "tailwindcss": "4.1.17",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.1.10"
+  }
+}

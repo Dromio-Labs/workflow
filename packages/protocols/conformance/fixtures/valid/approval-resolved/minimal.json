@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "dromio.approval-resolved.v1",
+  "approvalId": "approval_123",
+  "roomId": "room_123",
+  "resolverParticipantId": "human_owner",
+  "decision": "approved",
+  "resolutionNote": "Ready to publish.",
+  "resolvedAt": "2026-06-18T12:05:00.000Z"
+}
+

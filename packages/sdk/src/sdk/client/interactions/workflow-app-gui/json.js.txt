@@ -1,0 +1,142 @@
+const jsonInspectorActivators = new WeakMap();
+
+export function highlightedJson(value) {
+  const pre = document.createElement("pre");
+  pre.className = "json-code hljs";
+  const code = document.createElement("code");
+  const source = JSON.stringify(value, null, 2) ?? String(value);
+  const tokens = /"(?:\\.|[^"\\])*"(?=\s*:)|"(?:\\.|[^"\\])*"|-?\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b|\b(?:true|false)\b|\bnull\b/gi;
+  let cursor = 0;
+  for (const match of source.matchAll(tokens)) {
+    const start = match.index ?? 0;
+    if (start > cursor) code.append(document.createTextNode(source.slice(cursor, start)));
+    const token = match[0];
+    const span = document.createElement("span");
+    span.className = jsonTokenClass(token, source.slice(start + token.length));
+    span.textContent = token;
+    code.append(span);
+    cursor = start + token.length;
+  }
+  if (cursor < source.length) code.append(document.createTextNode(source.slice(cursor)));
+  pre.append(code);
+  return pre;
+}
+
+export function inspectableJson(value, title = "Event detail") {
+  const block = document.createElement("section");
+  block.className = "code-block json-inspector";
+  const header = document.createElement("header");
+  header.className = "code-block-header";
+  header.append(element("span", "code-block-language", "JSON"));
+
+  const actions = element("div", "code-block-actions");
+  const toggle = element("div", "code-view-toggle");
+  toggle.setAttribute("role", "radiogroup");
+  toggle.setAttribute("aria-label", "JSON display mode");
+  const renderedButton = modeButton("Rendered", true);
+  const rawButton = modeButton("JSON", false);
+  toggle.append(renderedButton, rawButton);
+  const copyButton = document.createElement("button");
+  copyButton.className = "code-copy-button";
+  copyButton.type = "button";
+  copyButton.setAttribute("aria-label", "Copy JSON");
+  copyButton.title = "Copy JSON";
+  copyButton.append(copyIcon());
+  actions.append(toggle, copyButton);
+  header.append(actions);
+
+  const rendered = element("div", "json-render-view");
+  rendered.dataset.jsonRenderRoot = "true";
+  const raw = element("div", "json-raw-view");
+  raw.hidden = true;
+  raw.append(highlightedJson(value));
+  block.append(header, rendered, raw);
+
+  let mounted = false;
+  const activate = () => {
+    if (mounted || !rendered.isConnected || rendered.hidden) return;
+    mounted = true;
+    window.workflowGuiRenderJson(rendered, value, title);
+  };
+  jsonInspectorActivators.set(block, activate);
+  setTimeout(() => {
+    const details = block.closest("details");
+    if (!details || details.open) activate();
+  }, 120);
+
+  renderedButton.addEventListener("click", () => {
+    setMode("rendered", renderedButton, rawButton, rendered, raw);
+    activate();
+  });
+  rawButton.addEventListener("click", () => {
+    setMode("json", renderedButton, rawButton, rendered, raw);
+  });
+  copyButton.addEventListener("click", () => copyJson(copyButton, value));
+  return block;
+}
+
+export function activateInspectableJson(container) {
+  for (const block of container.querySelectorAll(".json-inspector")) {
+    jsonInspectorActivators.get(block)?.();
+  }
+}
+
+function modeButton(label, checked) {
+  const button = element("button", "code-view-toggle-option", label);
+  button.type = "button";
+  button.setAttribute("role", "radio");
+  button.setAttribute("aria-checked", String(checked));
+  return button;
+}
+
+function setMode(mode, renderedButton, rawButton, rendered, raw) {
+  const showRendered = mode === "rendered";
+  renderedButton.setAttribute("aria-checked", String(showRendered));
+  rawButton.setAttribute("aria-checked", String(!showRendered));
+  rendered.hidden = !showRendered;
+  raw.hidden = showRendered;
+}
+
+function copyJson(button, value) {
+  const source = JSON.stringify(value, null, 2) ?? String(value);
+  void navigator.clipboard.writeText(source).then(() => {
+    button.dataset.copied = "true";
+    button.setAttribute("aria-label", "JSON copied");
+    setTimeout(() => {
+      button.dataset.copied = "false";
+      button.setAttribute("aria-label", "Copy JSON");
+    }, 1200);
+  }).catch(() => {
+    button.dataset.copyFailed = "true";
+  });
+}
+
+function copyIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("aria-hidden", "true");
+  const back = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  back.setAttribute("x", "5.5");
+  back.setAttribute("y", "2.5");
+  back.setAttribute("width", "8");
+  back.setAttribute("height", "8");
+  back.setAttribute("rx", "1.5");
+  const front = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  front.setAttribute("d", "M10.5 10.5v1A2 2 0 0 1 8.5 13.5h-6v-6a2 2 0 0 1 2-2h1");
+  svg.append(back, front);
+  return svg;
+}
+
+function jsonTokenClass(token, remaining) {
+  if (token.startsWith('"')) return /^\s*:/.test(remaining) ? "hljs-attr" : "hljs-string";
+  if (token === "true" || token === "false") return "hljs-literal";
+  if (token === "null") return "hljs-keyword";
+  return "hljs-number";
+}
+
+function element(name, className = "", text = "") {
+  const node = document.createElement(name);
+  if (className) node.className = className;
+  node.textContent = text;
+  return node;
+}

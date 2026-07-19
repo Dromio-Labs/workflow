@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/turn/v1.schema.json",
+  "title": "Dromio Turn v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "id", "threadId", "ordinal", "status", "inputItemIds", "createdBy", "createdAt", "updatedAt", "version"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.turn.v1" }, "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "ordinal": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["queued", "eligible", "running", "waiting_for_approval", "waiting_for_input", "cancelling", "completed", "failed", "cancelled"] },
+    "inputItemIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+    "modelSelection": { "type": "object", "additionalProperties": false, "required": ["modelId", "providerId"], "properties": { "modelId": { "type": "string", "minLength": 1 }, "providerId": { "type": "string", "minLength": 1 }, "reasoningEffort": { "type": "string", "minLength": 1 } } },
+    "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "createdAt": { "type": "string", "format": "date-time" }, "updatedAt": { "type": "string", "format": "date-time" }, "version": { "type": "integer", "minimum": 1 },
+    "provenance": { "$ref": "https://schemas.dromio.dev/resource-provenance/v1.schema.json" },
+    "retryOfTurnId": { "type": "string", "minLength": 1 }, "regeneratedFromTurnId": { "type": "string", "minLength": 1 }, "executionRunId": { "type": "string", "minLength": 1 }, "executionAttemptId": { "type": "string", "minLength": 1 }, "executionFencingToken": { "type": "integer", "minimum": 1 }, "contextSnapshotId": { "type": "string", "minLength": 1 }, "statusReason": { "type": "string" }
+  }
+}

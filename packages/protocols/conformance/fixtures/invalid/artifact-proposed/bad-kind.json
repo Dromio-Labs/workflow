@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "dromio.artifact-proposed.v1",
+  "artifactId": "artifact_123",
+  "roomId": "room_123",
+  "proposerParticipantId": "agent_builder",
+  "title": "Workflow release draft",
+  "kind": "spreadsheet-but-not-really",
+  "proposedAt": "2026-06-18T12:09:00.000Z"
+}
+

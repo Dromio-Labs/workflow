@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.thread-access-grant.v1","id":"grant-1","threadId":"thread-1","principal":{"type":"user","id":"user-2"},"role":"viewer","grantedBy":{"type":"user","id":"user-1"},"createdAt":"2026-01-01T00:00:00Z"}

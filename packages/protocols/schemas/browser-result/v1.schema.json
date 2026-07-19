@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-result/v1.schema.json",
+  "title": "Dromio Browser Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "operationId", "status", "output", "artifacts"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-result.v1" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+    "status": { "enum": ["completed", "accepted"] },
+    "output": { "$ref": "#/$defs/jsonValue" },
+    "observation": { "$ref": "#/$defs/observation" },
+    "artifacts": { "type": "array", "items": { "$ref": "#/$defs/artifact" } }
+  },
+  "$defs": {
+    "jsonValue": {
+      "anyOf": [
+        { "type": "null" }, { "type": "boolean" }, { "type": "number" }, { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
+    "observation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observationId", "tabId", "frameId", "url", "title", "revision"],
+      "properties": {
+        "observationId": { "type": "string", "minLength": 1 },
+        "tabId": { "type": "string", "minLength": 1 },
+        "frameId": { "type": "string", "minLength": 1 },
+        "url": { "type": "string" },
+        "title": { "type": ["string", "null"] },
+        "revision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "artifact": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "fileId", "digest", "mediaType", "sizeBytes", "sourceOperation", "retention", "availability", "deletion"],
+      "properties": {
+        "schemaVersion": { "const": "dromio.browser-artifact.v1" },
+        "fileId": { "type": "string", "minLength": 1 },
+        "digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "mediaType": { "type": "string", "minLength": 1 },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "sourceOperation": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+        "retention": { "enum": ["ephemeral", "thread", "application"] },
+        "availability": { "enum": ["pending", "available", "unavailable"] },
+        "deletion": { "enum": ["active", "scheduled", "deleted"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "@dromio/chat-shell-ui": ["../src/chat-shell.ts"],
+      "@dromio/chat-shell-ui/chat-shell": ["../src/chat-shell.ts"],
+      "@dromio/chat-shell-ui/chat-shell-contracts": ["../src/chat-shell-contracts.ts"],
+      "@dromio/chat-shell-ui/chat-shell-contracts/v1": ["../src/chat-shell-contracts-v1.ts"],
+      "@dromio/chat-shell-ui/styles.css": ["../src/styles.css"],
+      "@chatshell/response-protocol": ["../src/packages/chatshell-response-protocol/index.ts"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "global.d.ts"
+  ],
+  "exclude": [
+    "**/vite.config.ts",
+    "vite.example.config.ts"
+  ]
+}

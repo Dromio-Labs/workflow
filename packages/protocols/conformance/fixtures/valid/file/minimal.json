@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.file.v1","id":"file-1","tenantId":"tenant-1","applicationId":"app-1","kind":"file","status":"ready","objectKey":"tenant-1/file-1","mediaType":"text/plain","name":"note.txt","size":4,"checksum":"sha256:abc","version":1,"createdBy":{"type":"user","id":"user-1"},"createdAt":"2026-01-01T00:00:00Z"}

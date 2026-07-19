@@ -1,0 +1,26 @@
+[
+  {
+    "path": "packages/shell/chat-shell-ui/src/contracts/chatShellManifest.ts",
+    "guidance": "First-party Dromio source. Split into per-section schema modules before changing this behavior."
+  },
+  {
+    "path": "packages/shell/chat-shell-ui/examples/production-backend-adapter/adapter.ts",
+    "guidance": "First-party Dromio source. Split into transport, retry, and stream-projection modules before changing this behavior."
+  },
+  {
+    "path": "packages/shell/chat-shell-ui/src/components/settings/SettingsLayout.tsx",
+    "guidance": "First-party Dromio source. Split into navigation, section-rendering, and control-row modules before changing this behavior."
+  },
+  {
+    "path": "packages/shell/chat-shell-ui/src/components/shell/ChatShell.tsx",
+    "guidance": "First-party Dromio source. Split into slot-resolution, layout, and event-dispatch modules before changing this behavior."
+  },
+  {
+    "path": "packages/shell/chat-shell-ui/src/showcase/byoBackendControlPlane.ts",
+    "guidance": "First-party Dromio source. Split into control-plane reducer, seed, and manifest-projection modules before changing this behavior."
+  },
+  {
+    "path": "packages/sdk/src/sdk/product/model/opencode-worker.ts",
+    "guidance": "Split OpenCode worker into process orchestration, protocol parsing, prompt mapping, and result mapping modules."
+  }
+]

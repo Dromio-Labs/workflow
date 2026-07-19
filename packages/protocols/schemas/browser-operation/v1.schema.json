@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-operation/v1.schema.json",
+  "title": "Dromio Browser Operation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "requestId", "operationId", "scope", "effectClass", "permissionClass", "approval", "recovery", "input"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-operation.v1" },
+    "requestId": { "type": "string", "minLength": 1 },
+    "operationId": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+    "scope": { "$ref": "#/$defs/scope" },
+    "effectClass": { "enum": ["read", "interaction", "mutation", "lifecycle", "artifact", "diagnostic"] },
+    "permissionClass": { "enum": ["browser.read", "browser.interact", "browser.state", "browser.files", "browser.network", "browser.diagnostics", "browser.sessions", "browser.host"] },
+    "approval": { "enum": ["automatic", "approval-required", "disabled"] },
+    "recovery": { "enum": ["safe-retry", "observe-before-retry", "never-retry"] },
+    "input": { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+  },
+  "$defs": {
+    "scope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["tenantId", "applicationId", "userId", "threadId"],
+      "properties": {
+        "tenantId": { "type": "string", "minLength": 1 },
+        "applicationId": { "type": "string", "minLength": 1 },
+        "userId": { "type": "string", "minLength": 1 },
+        "threadId": { "type": "string", "minLength": 1 }
+      }
+    },
+    "jsonValue": {
+      "anyOf": [
+        { "type": "null" }, { "type": "boolean" }, { "type": "number" }, { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    }
+  }
+}

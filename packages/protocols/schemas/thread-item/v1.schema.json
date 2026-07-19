@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/thread-item/v1.schema.json",
+  "title": "Dromio Thread Item v1",
+  "oneOf": [
+    { "$ref": "#/$defs/message" },
+    { "$ref": "#/$defs/toolCall" },
+    { "$ref": "#/$defs/reference" },
+    { "$ref": "#/$defs/systemNotice" }
+  ],
+  "$defs": {
+    "baseProperties": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "threadId": { "type": "string", "minLength": 1 },
+        "turnId": { "type": "string", "minLength": 1 },
+        "ordinal": { "type": "integer", "minimum": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }
+      }
+    },
+    "contentPart": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["type", "text"], "properties": { "type": { "const": "text" }, "text": { "type": "string" } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "fileId", "mediaType"], "properties": { "type": { "enum": ["image", "audio", "video"] }, "fileId": { "type": "string", "minLength": 1 }, "mediaType": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "fileId", "version", "mediaType", "name"], "properties": { "type": { "const": "file" }, "fileId": { "type": "string", "minLength": 1 }, "version": { "type": "integer", "minimum": 1 }, "mediaType": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 } } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "schema", "value"], "properties": { "type": { "enum": ["structured_data", "application"] }, "schema": { "type": "string", "minLength": 1 }, "value": true } },
+        { "type": "object", "additionalProperties": false, "required": ["type", "artifactId"], "properties": { "type": { "const": "artifact" }, "artifactId": { "type": "string", "minLength": 1 } } }
+        ,{ "type": "object", "additionalProperties": false, "required": ["type", "uri"], "properties": { "type": { "const": "citation" }, "uri": { "type": "string", "minLength": 1 }, "title": { "type": "string" }, "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } } }
+      ]
+    },
+    "message": {
+      "allOf": [
+        { "$ref": "#/$defs/baseProperties" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "threadId", "ordinal", "createdAt", "createdBy", "type", "role", "author", "content", "status", "revision", "contextVisibility"],
+          "properties": {
+            "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "turnId": { "type": "string", "minLength": 1 }, "ordinal": { "type": "integer", "minimum": 1 }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "provenance": { "$ref": "https://schemas.dromio.dev/resource-provenance/v1.schema.json" },
+            "type": { "const": "message" }, "role": { "enum": ["user", "assistant", "system", "developer"] }, "author": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "content": { "type": "array", "items": { "$ref": "#/$defs/contentPart" } }, "status": { "enum": ["in_progress", "completed", "failed", "withdrawn", "deleted", "redacted"] }, "revision": { "type": "integer", "minimum": 1 }, "contextVisibility": { "enum": ["model_and_user", "user_only", "model_only", "excluded"] }
+          }
+        }
+      ]
+    },
+    "toolCall": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "threadId", "turnId", "ordinal", "createdAt", "createdBy", "type", "toolId", "toolVersion", "arguments", "effect", "recoveryPolicy", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "turnId": { "type": "string", "minLength": 1 }, "ordinal": { "type": "integer", "minimum": 1 }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "provenance": { "$ref": "https://schemas.dromio.dev/resource-provenance/v1.schema.json" },
+        "type": { "const": "tool_call" }, "toolId": { "type": "string", "minLength": 1 }, "toolVersion": { "type": "string", "minLength": 1 }, "capabilityId": { "type": "string", "minLength": 1 }, "arguments": { "type": "object", "additionalProperties": true }, "effect": { "enum": ["read_only", "idempotent", "non_idempotent"] }, "recoveryPolicy": { "enum": ["automatic_retry", "manual_reconciliation"] }, "idempotencyKey": { "type": "string", "minLength": 1 }, "status": { "enum": ["proposed", "waiting_for_approval", "queued", "running", "completed", "failed", "cancelled"] }, "approvalRequestId": { "type": "string", "minLength": 1 }, "result": true, "artifactIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      }
+    },
+    "reference": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "threadId", "ordinal", "createdAt", "createdBy", "type", "resourceId", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "turnId": { "type": "string", "minLength": 1 }, "ordinal": { "type": "integer", "minimum": 1 }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "provenance": { "$ref": "https://schemas.dromio.dev/resource-provenance/v1.schema.json" },
+        "type": { "enum": ["approval_request", "question", "form", "artifact", "context_compaction"] }, "resourceId": { "type": "string", "minLength": 1 }, "status": { "type": "string", "minLength": 1 }
+      }
+    },
+    "systemNotice": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "threadId", "ordinal", "createdAt", "createdBy", "type", "code", "message"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 }, "threadId": { "type": "string", "minLength": 1 }, "turnId": { "type": "string", "minLength": 1 }, "ordinal": { "type": "integer", "minimum": 1 }, "createdAt": { "type": "string", "format": "date-time" }, "createdBy": { "$ref": "https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference" }, "provenance": { "$ref": "https://schemas.dromio.dev/resource-provenance/v1.schema.json" },
+        "type": { "const": "system_notice" }, "code": { "type": "string", "minLength": 1 }, "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

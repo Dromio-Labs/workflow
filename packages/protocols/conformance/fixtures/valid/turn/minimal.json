@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.turn.v1","id":"turn-1","threadId":"thread-1","ordinal":1,"status":"queued","inputItemIds":["item-1"],"createdBy":{"type":"user","id":"user-1"},"createdAt":"2026-01-01T00:00:00Z","updatedAt":"2026-01-01T00:00:00Z","version":1}

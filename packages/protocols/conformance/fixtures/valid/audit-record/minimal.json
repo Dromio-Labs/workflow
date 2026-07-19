@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.audit-record.v1","id":"audit-1","tenantId":"tenant-1","applicationId":"app-1","actor":{"type":"user","id":"user-1"},"action":"threads.create","target":{"type":"thread","id":"thread-1"},"outcome":"allowed","correlationId":"correlation-1","createdAt":"2026-01-01T00:00:00Z"}

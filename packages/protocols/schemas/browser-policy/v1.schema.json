@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/browser-policy/v1.schema.json",
+  "title": "Dromio Browser Policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "enabledFeatures", "defaultMode", "operations", "limits"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.browser-policy.v1" },
+    "enabledFeatures": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/feature" } },
+    "defaultMode": { "$ref": "#/$defs/mode" },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["operationId", "mode"],
+        "properties": {
+          "operationId": { "type": "string", "pattern": "^browser\\.[a-z][a-z0-9.-]*$" },
+          "mode": { "$ref": "#/$defs/mode" }
+        }
+      }
+    },
+    "allowedOrigins": { "type": "array", "uniqueItems": true, "items": { "type": "string", "format": "uri" } },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["maxSessions", "maxTabsPerSession", "maxArtifactBytes", "maxEventRecords"],
+      "properties": {
+        "maxSessions": { "type": "integer", "minimum": 1 },
+        "maxTabsPerSession": { "type": "integer", "minimum": 1 },
+        "maxArtifactBytes": { "type": "integer", "minimum": 1 },
+        "maxEventRecords": { "type": "integer", "minimum": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "feature": { "enum": ["inspect", "interaction", "tabs", "files", "state", "diagnostics", "network", "emulation", "recording", "remote"] },
+    "mode": { "enum": ["automatic", "approval-required", "disabled"] }
+  }
+}

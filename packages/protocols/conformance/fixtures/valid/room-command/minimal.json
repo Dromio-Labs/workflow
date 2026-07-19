@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "dromio.room-command.v1",
+  "commandId": "cmd_001",
+  "roomId": "room_123",
+  "name": "room.raiseHand",
+  "issuedBy": "agent_builder",
+  "issuedAt": "2026-06-18T12:02:00.000Z",
+  "payload": {
+    "reason": "Needs human approval before publishing."
+  }
+}
+

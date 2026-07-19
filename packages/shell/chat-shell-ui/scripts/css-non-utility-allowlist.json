@@ -1,0 +1,29 @@
+{
+  "exact": [
+    "chat-shell-layout-fullscreen",
+    "chat-shell-version-label",
+    "group",
+    "group/avatar",
+    "group/button",
+    "group/collapsible-content",
+    "group/file",
+    "group/git-action-status",
+    "group/history-message",
+    "group/quick-action",
+    "group/task-item",
+    "group/tool-summary",
+    "group/user-message",
+    "group/workflow",
+    "history-message",
+    "latest-message",
+    "opacity",
+    "zc-composer-approval",
+    "zc-composer-wrap",
+    "zc-conversation-scroll"
+  ],
+  "prefixes": [
+    "chat-shell-showcase",
+    "lucide-",
+    "v1-stage"
+  ]
+}

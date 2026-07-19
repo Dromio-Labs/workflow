@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.restore-purge-receipt.v1","id":"restore-purge-1","restoreId":"restore-1","ledgerEntryId":"ledger-1","threadId":"thread-1","deletedResources":{"items":2},"propagationTargets":["context"],"enforcedAt":"2026-01-02T00:00:00Z"}

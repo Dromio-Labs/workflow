@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://schemas.dromio.dev/file-reference/v1.schema.json","title":"Dromio File Reference v1","type":"object","additionalProperties":false,
+  "required":["schemaVersion","id","fileId","threadId","kind","createdBy","createdAt"],
+  "properties":{"schemaVersion":{"const":"dromio.file-reference.v1"},"id":{"type":"string","minLength":1},"fileId":{"type":"string","minLength":1},"threadId":{"type":"string","minLength":1},"kind":{"enum":["attachment","artifact","export"]},"createdBy":{"$ref":"https://schemas.dromio.dev/actor-context/v1.schema.json#/$defs/actorReference"},"createdAt":{"type":"string","format":"date-time"}}
+}

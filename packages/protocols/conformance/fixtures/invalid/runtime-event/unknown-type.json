@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "dromio.runtime-event.v1",
+  "eventId": "runtime_evt_001",
+  "type": "runtime.vibes",
+  "timestamp": "2026-06-18T12:06:00.000Z",
+  "payload": {}
+}
+

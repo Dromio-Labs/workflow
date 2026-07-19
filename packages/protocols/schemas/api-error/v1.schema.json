@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.dromio.dev/api-error/v1.schema.json",
+  "title": "Dromio API Error v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "error"],
+  "properties": {
+    "schemaVersion": { "const": "dromio.api-error.v1" },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "requestId", "retryable"],
+      "properties": {
+        "code": { "enum": ["authentication_required", "permission_denied", "resource_not_found", "validation_failed", "idempotency_conflict", "version_conflict", "interaction_already_resolved", "stale_execution_attempt", "turn_not_eligible", "steering_not_supported", "retention_locked", "cursor_expired", "sequence_gap", "rate_limited", "provider_unavailable", "storage_unavailable", "internal_error"] },
+        "message": { "type": "string", "minLength": 1 },
+        "requestId": { "type": "string", "minLength": 1 },
+        "retryable": { "type": "boolean" },
+        "retryAfterMs": { "type": "integer", "minimum": 0 },
+        "details": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}

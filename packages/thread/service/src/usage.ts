@@ -1,0 +1,16 @@
+import type { DromioUsageRecordV1 } from "@dromio/protocols";
+
+export interface UsageTotals { readonly inputTokens: number; readonly cachedInputTokens: number; readonly outputTokens: number; readonly reasoningTokens: number; readonly toolUnits: number; }
+export interface UsageProjection { readonly finalized: UsageTotals; readonly reserved: UsageTotals; readonly billableAttempts: number; readonly retryAttempts: number; readonly amountsByCurrency: Readonly<Record<string, string>>; readonly finalizedRecordIds: readonly string[]; readonly reservedRecordIds: readonly string[]; }
+
+export function projectUsage(records: readonly DromioUsageRecordV1[]): UsageProjection {
+  const referenced = new Set(records.flatMap((record) => record.status === "reconciled" ? record.reconcilesUsageRecordIds ?? [] : []));
+  const finalized = records.filter((record) => record.status === "reconciled" || record.status === "final" && !referenced.has(record.id));
+  const reserved = records.filter((record) => record.status === "estimated" && !referenced.has(record.id));
+  const attempts = new Map<string, Set<string>>(); for (const record of finalized) { const values = attempts.get(record.runId) ?? new Set<string>(); values.add(record.attemptId); attempts.set(record.runId, values); }
+  const amounts = new Map<string, string>(); for (const record of finalized) if (record.amount && record.currency) amounts.set(record.currency, addDecimals(amounts.get(record.currency) ?? "0", record.amount));
+  return { finalized: totals(finalized), reserved: totals(reserved), billableAttempts: finalized.length ? new Set(finalized.map((record) => `${record.runId}\0${record.attemptId}`)).size : 0, retryAttempts: [...attempts.values()].reduce((sum, values) => sum + Math.max(0, values.size - 1), 0), amountsByCurrency: Object.fromEntries(amounts), finalizedRecordIds: finalized.map((record) => record.id), reservedRecordIds: reserved.map((record) => record.id) };
+}
+
+function totals(records: readonly DromioUsageRecordV1[]): UsageTotals { return records.reduce<UsageTotals>((sum, record) => ({ inputTokens: sum.inputTokens + (record.inputTokens ?? 0), cachedInputTokens: sum.cachedInputTokens + (record.cachedInputTokens ?? 0), outputTokens: sum.outputTokens + (record.outputTokens ?? 0), reasoningTokens: sum.reasoningTokens + (record.reasoningTokens ?? 0), toolUnits: sum.toolUnits + (record.toolUnits ?? 0) }), { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, toolUnits: 0 }); }
+function addDecimals(left: string, right: string): string { const [leftWhole = "0", leftFraction = ""] = left.split("."); const [rightWhole = "0", rightFraction = ""] = right.split("."); if (!/^\d+$/.test(leftWhole) || !/^\d*$/.test(leftFraction) || !/^\d+$/.test(rightWhole) || !/^\d*$/.test(rightFraction)) throw new Error("Usage amounts must be non-negative decimal strings."); const scale = Math.max(leftFraction.length, rightFraction.length); const leftValue = BigInt(leftWhole + leftFraction.padEnd(scale, "0")); const rightValue = BigInt(rightWhole + rightFraction.padEnd(scale, "0")); const value = (leftValue + rightValue).toString().padStart(scale + 1, "0"); if (!scale) return value; const result = `${value.slice(0, -scale)}.${value.slice(-scale)}`; return result.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1"); }

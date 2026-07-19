@@ -1,0 +1,1 @@
+{"schemaVersion":"dromio.thread-command.v1","commandId":"command-1","correlationId":"correlation-1","requestId":"request-1","name":"threads.create","tenantId":"tenant-1","applicationId":"app-1","idempotencyKey":"new-chat-1","timestamp":"2026-01-01T00:00:00Z","payload":{"title":"New chat"}}
