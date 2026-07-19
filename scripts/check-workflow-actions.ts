@@ -6,6 +6,7 @@ const workflowFiles = (await readdir(workflowRoot))
   .filter((file) => file.endsWith(".yml") || file.endsWith(".yaml"))
   .sort();
 const mutableReferences: string[] = [];
+const permissionFindings: string[] = [];
 
 for (const workflowFile of workflowFiles) {
   const contents = await readFile(path.join(workflowRoot, workflowFile), "utf8");
@@ -18,6 +19,23 @@ for (const workflowFile of workflowFiles) {
       mutableReferences.push(`${workflowFile}:${index + 1}: ${reference}`);
     }
   }
+
+  if (workflowFile === "release.yml") {
+    const publishStart = contents.indexOf("  publish-next:\n");
+    const verifyStart = contents.indexOf("  verify-next:\n");
+    const publishJob = contents.slice(publishStart, verifyStart);
+    const oidcGrantCount = contents.match(/^      id-token: write$/gm)?.length ?? 0;
+    if (
+      publishStart < 0 ||
+      verifyStart < 0 ||
+      !/^    permissions:\n      contents: read\n      id-token: write$/m.test(publishJob) ||
+      oidcGrantCount !== 1
+    ) {
+      permissionFindings.push(
+        "release.yml: only publish-next may grant contents: read and id-token: write for npm provenance",
+      );
+    }
+  }
 }
 
 if (mutableReferences.length > 0) {
@@ -26,4 +44,10 @@ if (mutableReferences.length > 0) {
   );
 }
 
-console.log(`Verified immutable GitHub Action references in ${workflowFiles.length} workflows.`);
+if (permissionFindings.length > 0) {
+  throw new Error(`Release permissions violate least privilege:\n${permissionFindings.join("\n")}`);
+}
+
+console.log(
+  `Verified immutable GitHub Action references and least-privilege release permissions in ${workflowFiles.length} workflows.`,
+);

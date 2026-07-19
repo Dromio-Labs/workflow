@@ -35,6 +35,9 @@ jobs:
   publish-next:
     if: inputs.action == 'publish-next'
     environment: npm-prerelease
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
