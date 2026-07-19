@@ -29,6 +29,19 @@ React, rendering, and control-plane APIs use deliberate subpath exports such as
 The package gate compiles and executes a complete workflow built from this step
 inside a clean consumer before a release can be promoted.
 
+## Configuration
+
+Basic steps and workflows do not require global configuration. Features that
+reach models, storage, control planes, or user interfaces receive their adapters
+at the application boundary, keeping workflow logic portable.
+
+## Examples and guides
+
+The [Workflow SDK guide](https://dromio.ai/docs/workflow-sdk) progresses from the
+first typed workflow through composition, human input, models and evaluation,
+events and traces, application surfaces, and current API status. Examples use the
+canonical package root first and introduce subpath APIs only when they are needed.
+
 ## Develop
 
 ```bash
