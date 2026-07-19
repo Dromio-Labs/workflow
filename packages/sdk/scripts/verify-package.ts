@@ -51,8 +51,8 @@ const localDependencyPackages = [
     name: "@dromio/workflow-canvas-protocol",
   },
 ] as const;
-const tempParent = process.env.WORKFLOW_SDK_PACKAGE_TEMP_PARENT ?? "/private/tmp";
-const tempRoot = await mkdtemp(path.join(tempParent || os.tmpdir(), "workflow-sdk-package-"));
+const tempParent = process.env.WORKFLOW_SDK_PACKAGE_TEMP_PARENT || os.tmpdir();
+const tempRoot = await mkdtemp(path.join(tempParent, "workflow-sdk-package-"));
 const bunTempDir = path.join(tempRoot, "tmp");
 const releaseArtifactDir = process.env.WORKFLOW_RELEASE_ARTIFACT_DIR;
 const packageArtifactDir = releaseArtifactDir ? path.resolve(releaseArtifactDir) : tempRoot;
@@ -107,7 +107,7 @@ try {
     type: "module",
   }, null, 2));
 
-  run("bun", ["install"], consumerDir);
+  run("bun", ["install", "--ignore-scripts"], consumerDir);
   await assertPublishedDependencySpec(consumerDir);
   await writeFile(
     path.join(consumerDir, "smoke.mjs"),
