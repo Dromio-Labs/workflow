@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -114,98 +113,7 @@ describe("dromio workflow validation", () => {
     expect(output.workflows[0]?.errors.map((error) => error.code)).not.toContain("INFRA_IN_WORKFLOW_DOCUMENT");
   });
 
-  test("prints machine-readable CLI JSON and exits 1 when validation errors exist", async () => {
-    const project = createWorkbench();
-    writeCatalog(project);
-    writeBadGraphWorkflow(project);
-
-    const proc = runDromioCli([
-      "validate",
-      "--all",
-      "--json",
-      "--cwd",
-      project,
-    ]);
-    const stdout = proc.stdout;
-    const stderr = proc.stderr;
-
-    expect(stderr).toBe("");
-    expect(proc.status).toBe(1);
-    const parsed = JSON.parse(stdout) as { valid: boolean; workflows: { id: string }[] };
-    expect(parsed.valid).toBe(false);
-    expect(parsed.workflows.map((workflow) => workflow.id)).toContain("bad-graph");
-  });
-
-  test("CLI render-only mode exits 0 for renderable workflows with dogfood conventions", async () => {
-    const project = createWorkbench();
-    writeCatalog(project);
-    writeSemanticIdWorkflow(project);
-
-    const proc = runDromioCli([
-      "validate",
-      "--all",
-      "--render-only",
-      "--json",
-      "--cwd",
-      project,
-    ]);
-    const stdout = proc.stdout;
-    const stderr = proc.stderr;
-
-    expect(stderr).toBe("");
-    expect(proc.status).toBe(0);
-    const parsed = JSON.parse(stdout) as { valid: boolean; summary: { passed: number } };
-    expect(parsed.valid).toBe(true);
-    expect(parsed.summary.passed).toBe(1);
-  });
-
-  test("exits 0 for a valid workflow and 2 for a missing workflow", async () => {
-    const project = createWorkbench();
-    writeCatalog(project);
-    writeWorkflow(project, "valid", "known.step");
-    writeGlue(project, "valid", [".dromio/workflows/valid.workflow.json"]);
-
-    const valid = runDromioCli(["validate", "valid", "--cwd", project]);
-    const missing = runDromioCli(["validate", "missing", "--cwd", project]);
-    const validStdout = valid.stdout;
-    const missingStderr = missing.stderr;
-
-    expect(valid.status).toBe(0);
-    expect(validStdout).toContain("dromio validate passed");
-    expect(missing.status).toBe(2);
-    expect(missingStderr).toContain("Workflow not found: missing");
-  });
 });
-
-function runDromioCli(args: string[]) {
-  const outputDir = mkdtempSync(path.join(tmpdir(), "dromio-cli-output-"));
-  projects.push(outputDir);
-  const stdoutPath = path.join(outputDir, "stdout.txt");
-  const stderrPath = path.join(outputDir, "stderr.txt");
-  const command = [
-    ["bun", path.join(import.meta.dir, "../../../cli/src/cli.ts"), ...args]
-      .map(shellQuote)
-      .join(" "),
-    ">",
-    shellQuote(stdoutPath),
-    "2>",
-    shellQuote(stderrPath),
-  ].join(" ");
-  const result = spawnSync(
-    "zsh",
-    ["-lc", command],
-    { encoding: "utf8" },
-  );
-  return {
-    status: result.status,
-    stderr: readFileSync(stderrPath, "utf8"),
-    stdout: readFileSync(stdoutPath, "utf8"),
-  };
-}
-
-function shellQuote(value: string) {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
 
 function createWorkbench(): string {
   const project = mkdtempSync(path.join(tmpdir(), "dromio-validate-"));

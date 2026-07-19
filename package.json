@@ -16,8 +16,13 @@
   ],
   "scripts": {
     "build": "bun run --cwd packages/sdk build",
-    "check": "bun run --cwd packages/sdk check && bun run --cwd packages/sdk verify:package",
+    "check": "bun run check:closure && bun run --cwd packages/sdk verify:package",
+    "check:closure": "bun run --cwd packages/protocols check && bun run --cwd packages/execution check && bun run --cwd packages/thread/service check && bun run --cwd packages/trigger check && bun run --cwd packages/workflow/canvas-protocol check && bun run --cwd packages/workflow/kernel check && bun run --cwd packages/room/protocol check && bun run --cwd packages/shell/chat-shell-ui check && bun run --cwd packages/sdk check && bun run --cwd packages/sdk test",
     "local-registry": "bun scripts/build-local-registry.ts",
+    "release:rehearse": "bun scripts/release.ts rehearse",
+    "release:publish-next": "bun scripts/release.ts publish-next",
+    "release:verify-next": "bun scripts/release.ts verify-next",
+    "release:promote-latest": "bun scripts/release.ts promote-latest",
     "test": "bun test packages/sdk",
     "typecheck": "bun run --cwd packages/sdk check"
   },

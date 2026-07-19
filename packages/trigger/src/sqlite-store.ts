@@ -1,6 +1,13 @@
-import { Database } from "bun:sqlite";
 import type { DromioTriggerOccurrenceV1 } from "@dromio/protocols";
 import type { TriggerDefinition, TriggerDispatchReceipt, TriggerStore } from "./types.js";
+
+export interface SqliteTriggerDatabase {
+  exec(sql: string): unknown;
+  query(sql: string): {
+    get(...parameters: unknown[]): unknown;
+    run(...parameters: unknown[]): unknown;
+  };
+}
 
 const migration = `
 CREATE TABLE IF NOT EXISTS trigger_definitions (id TEXT PRIMARY KEY, resource_json TEXT NOT NULL);
@@ -8,7 +15,7 @@ CREATE TABLE IF NOT EXISTS trigger_occurrences (id TEXT PRIMARY KEY, tenant_id T
 `;
 
 export class SqliteTriggerStore implements TriggerStore {
-  constructor(private readonly database: Database) { database.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;"); database.exec(migration); }
+  constructor(private readonly database: SqliteTriggerDatabase) { database.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;"); database.exec(migration); }
   async putDefinition(value: TriggerDefinition): Promise<void> { this.database.query("INSERT INTO trigger_definitions (id,resource_json) VALUES (?,?) ON CONFLICT(id) DO UPDATE SET resource_json=excluded.resource_json").run(value.id, JSON.stringify(value)); }
   async getDefinition(id: string): Promise<TriggerDefinition | undefined> { return optional(this.database.query("SELECT resource_json FROM trigger_definitions WHERE id=?").get(id)); }
   async getReceipt(tenantId: string, applicationId: string, key: string): Promise<TriggerDispatchReceipt | undefined> { return optional(this.database.query("SELECT receipt_json AS resource_json FROM trigger_occurrences WHERE tenant_id=? AND application_id=? AND idempotency_key=?").get(tenantId, applicationId, key)); }

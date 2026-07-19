@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Release action
+        required: true
+        type: choice
+        options:
+          - rehearse
+          - publish-next
+          - verify-next
+          - promote-latest
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: workflow-release
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    if: inputs.action == 'rehearse'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: make setup
+      - run: make release-rehearse
+
+  publish-next:
+    if: inputs.action == 'publish-next'
+    environment: npm-prerelease
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: make setup
+      - run: make release-publish-next
+        env:
+          DROMIO_RELEASE_CONFIRM: publish-next
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  verify-next:
+    if: inputs.action == 'verify-next'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: make setup
+      - run: make release-verify-next
+
+  promote-latest:
+    if: inputs.action == 'promote-latest'
+    environment: npm-production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: make setup
+      - run: make release-promote-latest
+        env:
+          DROMIO_RELEASE_CONFIRM: promote-latest
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

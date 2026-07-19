@@ -4,39 +4,28 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { packageDirectories } from "./package-closure.js";
 
 const root = path.resolve(import.meta.dir, "..");
 const outDir = path.join(root, ".tmp", "package-release", "artifacts");
 const packageDir = path.join(outDir, "packages");
 const stageDir = path.join(outDir, "staging");
-const packages = [
-  "packages/protocols",
-  "packages/execution",
-  "packages/thread/service",
-  "packages/trigger",
-  "packages/workflow/canvas-protocol",
-  "packages/workflow/kernel",
-  "packages/room/protocol",
-  "packages/shell/chat-shell-ui",
-  "packages/sdk",
-] as const;
-const registryPackages = ["packages/sdk"] as const;
 
 await rm(outDir, { force: true, recursive: true });
 await mkdir(packageDir, { recursive: true });
 await mkdir(stageDir, { recursive: true });
 
 const manifests = new Map<string, PackageManifest>();
-for (const directory of packages) {
+for (const directory of packageDirectories) {
   const manifest = await readManifest(path.join(root, directory, "package.json"));
   manifests.set(manifest.name, manifest);
 }
 
 const registry = [];
-for (const directory of packages) {
+for (const directory of packageDirectories) {
   run("bun", ["run", "build"], path.join(root, directory));
 }
-for (const directory of registryPackages) {
+for (const directory of packageDirectories) {
   const source = path.join(root, directory);
   const stage = path.join(stageDir, directory.replaceAll("/", "-"));
   await cp(source, stage, { recursive: true, filter: (entry) => !/(?:^|\/)node_modules(?:\/|$)/.test(entry) });

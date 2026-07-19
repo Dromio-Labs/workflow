@@ -82,6 +82,7 @@ function childMode(node: WorkflowRenderNode): WorkflowOutlineChildrenMode {
 }
 
 function isBoundary(node: WorkflowRenderNode) {
-  return node.semantic.role === "boundary" || node.semantic.role === "trigger" ||
+  return node.kind === "initial" || node.kind === "trigger" || node.kind === "end" ||
+    node.semantic.role === "boundary" || node.semantic.role === "trigger" ||
     node.semantic.role === "terminal" || node.semantic.role === "join" || node.semantic.role === "merge";
 }

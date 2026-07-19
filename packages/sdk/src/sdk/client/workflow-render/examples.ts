@@ -5,6 +5,13 @@ import {
   validateWorkflowRenderability,
 } from "./validation.js";
 import type { WorkflowRenderDocumentLike } from "./types.js";
+import type { WorkflowRenderModel } from "./types.js";
+import type { WorkflowRenderValidation } from "./validation.js";
+
+type WorkflowRenderExample = {
+  model: WorkflowRenderModel;
+  validation: WorkflowRenderValidation;
+};
 
 const starterDocument: WorkflowRenderDocumentLike = {
   description: "Generated starter workbench workflow.",
@@ -23,7 +30,7 @@ const starterDocument: WorkflowRenderDocumentLike = {
   trigger: { id: "intent", input: { prompt: {} }, label: "Intent" },
 };
 
-export function starterWorkbenchWorkflowRenderExample() {
+export function starterWorkbenchWorkflowRenderExample(): WorkflowRenderExample {
   const model = projectWorkflowDocumentRenderModel({
     document: starterDocument,
   });
@@ -33,7 +40,7 @@ export function starterWorkbenchWorkflowRenderExample() {
   };
 }
 
-export function runningWorkflowRenderExample() {
+export function runningWorkflowRenderExample(): WorkflowRenderExample {
   const model = projectWorkflowDocumentRenderModel({
     document: starterDocument,
     statuses: {
@@ -49,7 +56,7 @@ export function runningWorkflowRenderExample() {
   };
 }
 
-export function incompleteLayoutRenderExample() {
+export function incompleteLayoutRenderExample(): WorkflowRenderExample {
   const model = projectWorkflowDocumentRenderModel({
     document: starterDocument,
   });
@@ -59,7 +66,7 @@ export function incompleteLayoutRenderExample() {
   };
 }
 
-export function childWorkflowRenderExample() {
+export function childWorkflowRenderExample(): WorkflowRenderExample {
   const model = projectWorkflowDocumentRenderModel({
     catalog: {
       get(id) {
@@ -117,7 +124,7 @@ export function childWorkflowRenderExample() {
   };
 }
 
-export function validationFailureRenderExample() {
+export function validationFailureRenderExample(): WorkflowRenderExample {
   const model = projectWorkflowDocumentRenderModel({
     document: {
       edges: [

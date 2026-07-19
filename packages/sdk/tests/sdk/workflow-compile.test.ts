@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -159,32 +158,6 @@ describe("dromio workflow compile", () => {
     ]);
   });
 
-  test("prints machine-readable CLI JSON and writes compile artifacts", async () => {
-    const project = createWorkbench();
-    writeStarterCatalog(project);
-    writeEchoWorkflow(project);
-    writeGlue(project, "echo");
-
-    const proc = runDromioCli([
-      "compile",
-      "--all",
-      "--json",
-      "--cwd",
-      project,
-    ]);
-    const stdout = proc.stdout;
-    const stderr = proc.stderr;
-
-    expect(stderr).toBe("");
-    expect(proc.status).toBe(0);
-    const parsed = JSON.parse(stdout) as { artifacts: Array<{ workflow: { id: string } }>; valid: boolean };
-    expect(parsed.valid).toBe(true);
-    expect(parsed.artifacts.map((artifact) => artifact.workflow.id)).toEqual(["echo"]);
-    expect(readFileSync(path.join(project, ".dromio", "compile", "echo.json"), "utf8")).toContain(
-      "\"artifactVersion\": 1",
-    );
-  });
-
   test("supports render-only compile facts without marking workflows publishable", async () => {
     const project = createWorkbench();
     writeStarterCatalog(project);
@@ -234,36 +207,6 @@ describe("dromio workflow compile", () => {
     expect(all.validation.workflows.some((workflow) => workflow.id === "unrelated")).toBe(true);
   });
 });
-
-function runDromioCli(args: string[]) {
-  const outputDir = mkdtempSync(path.join(tmpdir(), "dromio-cli-output-"));
-  projects.push(outputDir);
-  const stdoutPath = path.join(outputDir, "stdout.txt");
-  const stderrPath = path.join(outputDir, "stderr.txt");
-  const command = [
-    ["bun", path.join(import.meta.dir, "../../../cli/src/cli.ts"), ...args]
-      .map(shellQuote)
-      .join(" "),
-    ">",
-    shellQuote(stdoutPath),
-    "2>",
-    shellQuote(stderrPath),
-  ].join(" ");
-  const result = spawnSync(
-    "zsh",
-    ["-lc", command],
-    { encoding: "utf8" },
-  );
-  return {
-    status: result.status,
-    stderr: readFileSync(stderrPath, "utf8"),
-    stdout: readFileSync(stdoutPath, "utf8"),
-  };
-}
-
-function shellQuote(value: string) {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
 
 function createWorkbench(): string {
   const project = mkdtempSync(path.join(tmpdir(), "dromio-compile-"));

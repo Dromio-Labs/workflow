@@ -1,5 +1,13 @@
-import { Database } from "bun:sqlite";
 import type { ExecutionAttempt, ExecutionRun, ExecutionStore, ExecutionTransaction } from "./types.js";
+
+export interface SqliteExecutionDatabase {
+  exec(sql: string): unknown;
+  query(sql: string): {
+    all(...parameters: unknown[]): unknown[];
+    get(...parameters: unknown[]): unknown;
+    run(...parameters: unknown[]): unknown;
+  };
+}
 
 const migration = `
 CREATE TABLE IF NOT EXISTS execution_runs (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, application_id TEXT NOT NULL, idempotency_key TEXT NOT NULL, resource_json TEXT NOT NULL, UNIQUE(tenant_id,application_id,idempotency_key));
@@ -8,7 +16,7 @@ CREATE TABLE IF NOT EXISTS execution_fencing (run_id TEXT PRIMARY KEY, value INT
 `;
 
 export class SqliteExecutionStore implements ExecutionStore {
-  constructor(private readonly database: Database) { database.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;"); database.exec(migration); }
+  constructor(private readonly database: SqliteExecutionDatabase) { database.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;"); database.exec(migration); }
   async transaction<Result>(work: (transaction: ExecutionTransaction) => Result): Promise<Result> {
     this.database.exec("BEGIN IMMEDIATE");
     try { const result = work(this.tx()); this.database.exec("COMMIT"); return result; } catch (error) { this.database.exec("ROLLBACK"); throw error; }

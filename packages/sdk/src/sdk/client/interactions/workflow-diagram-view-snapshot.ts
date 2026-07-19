@@ -261,7 +261,8 @@ function appendRenderLoopGroup(input: {
 
 function modelStepIndex(model: WorkflowRenderModel, nodeId: string) {
   const steps = model.nodes.filter(
-    (node) => node.semantic.role !== "boundary" && node.semantic.role !== "trigger" && node.semantic.role !== "terminal",
+    (node) => node.kind !== "initial" && node.kind !== "trigger" && node.kind !== "end"
+      && node.semantic.role !== "boundary" && node.semantic.role !== "trigger" && node.semantic.role !== "terminal",
   );
   const index = steps.findIndex((node) => node.id === nodeId);
   return index >= 0 ? index + 1 : undefined;

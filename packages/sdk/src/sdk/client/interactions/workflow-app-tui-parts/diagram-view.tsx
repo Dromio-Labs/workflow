@@ -280,9 +280,10 @@ export function workflowDiagramActiveNodeScroll(
     const activeLabel = diagram.nodes.find((node) => node.id === projection.activeNode)?.label;
     const labelLines = diagramLabelSearchLines(activeLabel);
     if (labelLines.length === 0) return { x: 0, y: 0 };
+    const anchor = labelLines[0]!;
     const rendered = renderPlainWorkflowDiagram(projection, spinnerFrame);
     for (const [lineIndex, line] of rendered.split("\n").entries()) {
-      const column = firstSearchLineColumn(line, labelLines);
+      const column = line.indexOf(anchor);
       if (column >= 0) {
         const labelWidth = Math.max(...labelLines.map((labelLine) => labelLine.length));
         return {

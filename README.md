@@ -8,7 +8,7 @@ Build typed, durable workflows with one public package: `@dromio/workflow`.
 bun add @dromio/workflow
 ```
 
-## First workflow
+## First step
 
 ```ts
 import { step } from "@dromio/workflow";
@@ -26,16 +26,22 @@ Common authoring primitives are exported from the package root. Advanced client,
 React, rendering, and control-plane APIs use deliberate subpath exports such as
 `@dromio/workflow/client` and `@dromio/workflow/react`.
 
+The package gate compiles and executes a complete workflow built from this step
+inside a clean consumer before a release can be promoted.
+
 ## Develop
 
 ```bash
 make setup
 make check
+make release-rehearse
 ```
 
 `make check` builds the complete workflow-owned package closure, checks the
-public API, packs the packages, installs them into a clean consumer, and imports
-every supported public subpath.
+public API, packs all nine packages in the release closure, installs them into a
+clean consumer, imports every supported public subpath, and compiles and runs a
+representative workflow. `make release-rehearse` additionally validates the
+dependency order and publication metadata without contacting npm.
 
 ## Repository boundary
 
