@@ -36,6 +36,7 @@ let followLatestActivity = true;
 let inspectorPointerScrolling = false;
 let inspectorScrollIntent = false;
 let syncingInspectorScroll = false;
+let waitingRunPollTimer;
 const workflowById = new Map(payload.workflows.map((workflow) => [workflow.id, workflow]));
 const requested = new URLSearchParams(location.search).get("workflow");
 const state = {
@@ -155,6 +156,7 @@ function selectWorkflow(workflowId, updateUrl) {
   requestAnimationFrame(fitView);
 }
 function resetRun() {
+  stopWaitingRunPoll();
   followLatestActivity = true;
   state.error = undefined;
   state.events = [];
@@ -473,6 +475,7 @@ function titleCase(value) {
 }
 
 async function executeRun(input, attachments) {
+  stopWaitingRunPoll();
   followLatestActivity = true;
   state.error = undefined;
   state.events = [];
@@ -527,8 +530,45 @@ function receiveMessage(message) {
     state.run = message.run;
     state.running = false;
     renderRunState();
+    syncWaitingRunPoll();
   }
   renderInspector();
+}
+
+function syncWaitingRunPoll() {
+  if (state.run?.status !== "waiting") {
+    stopWaitingRunPoll();
+    return;
+  }
+  if (waitingRunPollTimer) return;
+  waitingRunPollTimer = setInterval(() => void pollWaitingRun(), 250);
+}
+
+function stopWaitingRunPoll() {
+  if (!waitingRunPollTimer) return;
+  clearInterval(waitingRunPollTimer);
+  waitingRunPollTimer = undefined;
+}
+
+async function pollWaitingRun() {
+  const run = state.run;
+  if (!run || run.status !== "waiting") {
+    stopWaitingRunPoll();
+    return;
+  }
+  try {
+    const response = await fetch(`/api/runs/${encodeURIComponent(run.runId)}`);
+    const updated = await response.json();
+    if (!response.ok) throw new Error(updated.error || response.statusText);
+    const knownIndexes = new Set(state.events.map((event) => event.index));
+    for (const event of updated.events || []) {
+      if (!knownIndexes.has(event.index)) receiveMessage({ event, type: "event" });
+    }
+    receiveMessage({ run: updated, type: "run" });
+  } catch (error) {
+    stopWaitingRunPoll();
+    showError(error);
+  }
 }
 
 function updateLiveActivityPreview(event) {
@@ -679,6 +719,7 @@ function setRunning(running) {
 }
 
 function showError(error) {
+  stopWaitingRunPoll();
   state.running = false;
   state.error = error instanceof Error ? error.message : String(error);
   runDock.hidden = true;

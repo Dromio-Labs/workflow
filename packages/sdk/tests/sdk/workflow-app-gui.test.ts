@@ -103,6 +103,8 @@ describe("workflow app GUI", () => {
       expect(scriptBody).toContain("renderArtifactTrigger");
       expect(scriptBody).toContain("syncStructuredRunSubmit");
       expect(scriptBody).toContain("structuredRunSubmit.disabled");
+      expect(scriptBody).toContain("pollWaitingRun");
+      expect(scriptBody).toContain('fetch(`/api/runs/${encodeURIComponent(run.runId)}`)');
       expect(scriptBody).toContain('setTerminalNodeStatus("trigger", "completed", currentTrigger().id)');
       expect(scriptBody).toContain('sourceKind === "trigger" && !sourceStatus');
       expect(scriptBody).toContain('event.target.closest?.(".node-detail-card")');
