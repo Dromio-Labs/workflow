@@ -147,6 +147,55 @@ export async function resumeSession<TUse, TInput>(
       }, stepMetadata);
       return session.snapshot();
     }
+    if (result.type === "wait") {
+      session.pendingQuestions = result.questions ?? [];
+      session.pendingHooks = [
+        ...result.hooks,
+        ...session.pendingQuestions.map((question) =>
+          session.questionHookRequest(question, stepMetadata)
+        ),
+      ];
+      for (const hookRequest of result.hooks) {
+        session.hookRequests.set(hookRequest.token, hookRequest);
+      }
+      session.status = "waiting";
+      for (const hookRequest of session.pendingHooks) {
+        session.emit({
+          detail: { hook: hookRequest },
+          message: `Created hook ${hookRequest.id}.`,
+          stepId: current.id,
+          type: "hook.created",
+        }, stepMetadata);
+      }
+      session.emit({
+        detail: {
+          hooks: session.pendingHooks,
+          ...(session.pendingQuestions.length > 0 ? { questions: session.pendingQuestions } : {}),
+          ...(result.state ? { state: result.state } : {}),
+        },
+        durationMs: elapsedMs(stepStartedAt),
+        message: `Waiting for ${session.pendingHooks.length} hook${session.pendingHooks.length === 1 ? "" : "s"}.`,
+        stepId: current.id,
+        type: "step.waiting",
+      }, stepMetadata);
+      for (const hookRequest of session.pendingHooks) {
+        session.emit({
+          detail: { hook: hookRequest },
+          message: `Waiting for hook ${hookRequest.id}.`,
+          stepId: current.id,
+          type: "hook.waiting",
+        }, stepMetadata);
+      }
+      if (session.pendingQuestions.length > 0) {
+        session.emit({
+          detail: { questions: session.pendingQuestions },
+          message: `Waiting for ${session.pendingQuestions.length} answer${session.pendingQuestions.length === 1 ? "" : "s"}.`,
+          stepId: current.id,
+          type: "question.requested",
+        }, stepMetadata);
+      }
+      return session.snapshot();
+    }
     if (result.type === "fail") {
       session.status = "failed";
       session.emit({
@@ -264,6 +313,7 @@ function stepAttemptEffect<TUse, TInput>(
       step.run({
         answers: session.answers,
         emit: (event) => session.emit(event, stepMetadata),
+        hookAnswers: session.hookAnswers,
         input: session.input,
         operation: (operationInput, run) => runStepOperation({
           emit: (event) => session.emit(event, stepMetadata),

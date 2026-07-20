@@ -181,7 +181,8 @@ function isAdvancedStepResult<TOutput>(
     || value.type === "done"
     || value.type === "fail"
     || value.type === "goto"
-    || value.type === "retry";
+    || value.type === "retry"
+    || value.type === "wait";
 }
 
 export function resolveAuthoredStepConfig<TConfig>(

@@ -81,5 +81,6 @@ export {
   sleep,
   TIMER_HOOK_KIND,
   UnresumableRunError,
+  wait,
   workerItemEvent,
 } from "./loop.js";

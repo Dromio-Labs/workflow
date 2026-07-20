@@ -1,12 +1,29 @@
 import type {
   EventPayload,
   EventRecord,
+  HookRequest,
   LoopHydrateOptions,
   LoopHydrationSnapshot,
   LoopGraphProjection,
   Question,
+  StepRuntimeMetadata,
+  StepState,
   TraceContext,
 } from "../../core/index.js";
+import {
+  childWorkflowStateRoot,
+  isTerminalChildWorkflowFailure,
+  mirrorChildHookRequest,
+  mirrorChildHookToken,
+  namespacedChildQuestionId,
+  scopedChildAnswers,
+} from "./child-workflow-waiting.js";
+
+export {
+  mirrorChildHookToken,
+  namespacedChildQuestionId,
+  scopedChildAnswers,
+};
 
 export type RunnableChildWorkflow<TInput, TSession extends ChildWorkflowSession = ChildWorkflowSession> = {
   graph?(): LoopGraphProjection;
@@ -21,10 +38,12 @@ export type RunnableChildWorkflow<TInput, TSession extends ChildWorkflowSession 
 export type ChildWorkflowSession<TState = Record<string, unknown>> = {
   answer?(input: { questionId: string; value: unknown }): Promise<unknown> | unknown;
   answers?: Record<string, unknown>;
+  consumedHookTokens?: Set<string>;
   events?: EventRecord[];
   pendingHooks?: unknown[];
   pendingQuestions?: Question[];
   resume?(): Promise<unknown> | unknown;
+  resumeHook?(input: { token: string; value: unknown }): Promise<unknown> | unknown;
   runId: string;
   snapshot?(): LoopHydrationSnapshot;
   state: TState;
@@ -149,7 +168,7 @@ export async function runChildWorkflow<TInput, TSession extends ChildWorkflowSes
       : await input.workflow.start(input.input, { onEvent });
   childRunId = childRunId ?? session.runId;
   if (session.status === "waiting" || (session.pendingQuestions?.length ?? 0) > 0 || (session.pendingHooks?.length ?? 0) > 0) {
-    if (input.allowWaiting && (session.pendingQuestions?.length ?? 0) > 0) return session;
+    if (input.allowWaiting) return session;
     throw new UnsupportedChildWorkflowWaitingError(input.childWorkflowId, childRunId);
   }
   if (session.status !== "completed") {
@@ -191,6 +210,129 @@ async function resumeChildWorkflow<TSession extends ChildWorkflowSession>(
   }
   await session.resume();
   return session;
+}
+
+/** The slice of a parent step context that `driveChildWorkflow` needs. */
+export type ChildWorkflowDriveContext = {
+  answers: Record<string, unknown>;
+  hookAnswers: Readonly<Record<string, unknown>>;
+  state: StepState;
+  step: StepRuntimeMetadata;
+};
+
+export type DriveChildWorkflowInput<TInput, TSession extends ChildWorkflowSession = ChildWorkflowSession> =
+  ChildWorkflowEventContext & {
+    context: ChildWorkflowDriveContext;
+    emit?: (event: EventPayload) => void;
+    input: TInput;
+    /** Unique per parent wait site (step id, plus branch/item identity). */
+    namespace: string;
+    /** Memoize completed children durably (fork branches, for-each items). */
+    retainCompleted?: boolean;
+    sessions?: Map<string, ChildWorkflowSession>;
+    workflow: RunnableChildWorkflow<TInput, TSession>;
+  };
+
+export type DriveChildWorkflowOutcome<TSession extends ChildWorkflowSession = ChildWorkflowSession> =
+  | { memoized?: boolean; session: TSession; status: "completed" }
+  | { hooks: HookRequest[]; questions: Question[]; session: TSession; status: "waiting" };
+
+/**
+ * Durable completion memo left by `driveChildWorkflow` when `retainCompleted`
+ * is set, readable before deciding to re-run an iteration or branch.
+ */
+export function memoizedChildWorkflowCompletion(
+  state: StepState,
+  namespace: string,
+): { runId: string; state: Record<string, unknown>; status: "completed" } | undefined {
+  const entry = childWorkflowStateRoot(state)[namespace];
+  if (!entry?.completedState) return undefined;
+  return {
+    runId: entry.completedRunId ?? namespace,
+    state: entry.completedState,
+    status: "completed",
+  };
+}
+
+/**
+ * Runs a child workflow on behalf of a parent step, letting the child wait for
+ * input at any depth. Child questions surface through the parent namespaced by
+ * the wait site; child hooks surface as mirrored parent hooks with tokens
+ * derived from the child token, so resuming the parent routes the value back
+ * to the workflow that asked. Waiting children persist their snapshot into the
+ * parent's durable state and are rebuilt on rehydration.
+ */
+export async function driveChildWorkflow<TInput, TSession extends ChildWorkflowSession = ChildWorkflowSession>(
+  input: DriveChildWorkflowInput<TInput, TSession>,
+): Promise<DriveChildWorkflowOutcome<TSession>> {
+  const { context, namespace, retainCompleted, sessions, ...runInput } = input;
+  const stateRoot = childWorkflowStateRoot(context.state);
+  const persisted = stateRoot[namespace];
+  if (retainCompleted && persisted?.completedState) {
+    return {
+      memoized: true,
+      session: {
+        runId: persisted.completedRunId ?? namespace,
+        state: persisted.completedState,
+        status: "completed",
+      } as TSession,
+      status: "completed",
+    };
+  }
+  const sessionKey = `${context.step.runId}:${namespace}`;
+  const cached = sessions?.get(sessionKey) as TSession | undefined;
+  let session = await runChildWorkflow<TInput, TSession>({
+    ...runInput,
+    allowWaiting: true,
+    answers: scopedChildAnswers(namespace, context.answers),
+    session: cached,
+    snapshot: cached ? undefined : persisted?.snapshot as LoopHydrationSnapshot<TInput> | undefined,
+  });
+  for (;;) {
+    if (session.status === "completed") {
+      sessions?.delete(sessionKey);
+      if (retainCompleted) {
+        stateRoot[namespace] = {
+          completedRunId: session.runId,
+          completedState: session.state as Record<string, unknown>,
+        };
+      } else {
+        delete stateRoot[namespace];
+      }
+      return { session, status: "completed" };
+    }
+    if (isTerminalChildWorkflowFailure(session.status)) {
+      sessions?.delete(sessionKey);
+      delete stateRoot[namespace];
+      throw new FailedChildWorkflowError(input.childWorkflowId, session.runId, session.status, session);
+    }
+    const pendingHooks = (session.pendingHooks ?? []) as HookRequest[];
+    const blocking = pendingHooks.filter((request) => request.kind !== "question");
+    let advanced = false;
+    for (const request of blocking) {
+      const mirrorToken = mirrorChildHookToken(namespace, request.token);
+      if (!(mirrorToken in context.hookAnswers)) continue;
+      if (session.consumedHookTokens?.has(request.token)) continue;
+      if (!session.resumeHook) {
+        throw new UnsupportedChildWorkflowWaitingError(input.childWorkflowId, session.runId);
+      }
+      await session.resumeHook({ token: request.token, value: context.hookAnswers[mirrorToken] });
+      advanced = true;
+      break;
+    }
+    if (advanced) continue;
+    sessions?.set(sessionKey, session);
+    stateRoot[namespace] = session.snapshot ? { snapshot: session.snapshot() } : {};
+    return {
+      hooks: blocking.map((request) => mirrorChildHookRequest(namespace, context.step, request)),
+      questions: (session.pendingQuestions ?? []).map((question) => ({
+        ...question,
+        id: namespacedChildQuestionId(namespace, question.id),
+      })),
+      session,
+      status: "waiting",
+    };
+  }
 }
 
 /**

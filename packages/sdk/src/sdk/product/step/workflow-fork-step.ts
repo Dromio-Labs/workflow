@@ -1,15 +1,19 @@
 import {
   createContractedRuntimeStep,
   done,
+  wait,
   type EventPayload,
+  type HookRequest,
   type InferStepContractOutput,
+  type Question,
   type StepContractSourceMap,
   type StepDefinition,
   type StepOptions,
   type StepRuntimeMetadata,
 } from "../../core/index.js";
 import {
-  runChildWorkflow,
+  driveChildWorkflow,
+  type ChildWorkflowDriveContext,
   type ChildWorkflowSession,
   type RunnableChildWorkflow,
 } from "../workflow/child-workflow.js";
@@ -26,9 +30,23 @@ type ForkStepRuntime = StepRuntimeMetadata & {
 };
 
 type WorkflowForkRunContext = {
+  drive: ChildWorkflowDriveContext;
   forkSpanId: string;
   parentStep: ForkStepRuntime;
+  sessions: Map<string, ChildWorkflowSession>;
 };
+
+/** Internal sentinel a branch returns when its child workflow is waiting. */
+export type WorkflowForkBranchWaiting = {
+  hooks: HookRequest[];
+  kind: "fork-branch-waiting";
+  questions: Question[];
+};
+
+export function isForkBranchWaiting(value: unknown): value is WorkflowForkBranchWaiting {
+  return typeof value === "object" && value !== null
+    && (value as WorkflowForkBranchWaiting).kind === "fork-branch-waiting";
+}
 
 export type WorkflowForkBranch<
   TId extends string = string,
@@ -36,7 +54,7 @@ export type WorkflowForkBranch<
 > = {
   id: TId;
   label: string;
-  run(context: WorkflowForkRunContext): Promise<TResult>;
+  run(context: WorkflowForkRunContext): Promise<TResult | WorkflowForkBranchWaiting>;
 };
 
 export type WorkflowForkResults<
@@ -111,25 +129,45 @@ export function createWorkflowForkBranch<
           ? input.createWorkflow()
           : input.createWorkflow;
         assertWorkflowIdentity(input.workflow, workflow);
-        const session = await runChildWorkflow({
+        const outcome = await driveChildWorkflow({
           childWorkflowId: input.workflow.id,
+          context: context.drive,
           emit: context.parentStep.emit,
           input: input.childInput,
           itemId: input.id,
           itemKind: "fork-branch",
           iterationLabel: label,
           messagePrefix: label,
+          namespace: `${context.parentStep.id}.${input.id}`,
           parentStepId: context.parentStep.id,
           parentTrace: {
             spanId: branchSpanId,
             traceId: context.parentStep.runId,
           },
           phase: "fork branch",
+          retainCompleted: true,
+          sessions: context.sessions,
           spanIdPrefix: `${branchSpanId}:child`,
           stepIdPrefix: `${context.parentStep.id}.${input.id}`,
           workflow,
         });
-        const result = await input.mapResult(session);
+        if (outcome.status === "waiting") {
+          emitForkEvent(context.parentStep, {
+            detail: { branchId: input.id, branchLabel: label },
+            message: `Waiting in ${label}.`,
+            name: label,
+            parentSpanId: context.forkSpanId,
+            spanId: branchSpanId,
+            status: "unset",
+            type: "fork.branch.waiting",
+          });
+          return {
+            hooks: outcome.hooks,
+            kind: "fork-branch-waiting",
+            questions: outcome.questions,
+          } satisfies WorkflowForkBranchWaiting;
+        }
+        const result = await input.mapResult(outcome.session);
         emitForkEvent(context.parentStep, {
           detail: { branchId: input.id, branchLabel: label, durationMs: Date.now() - startedAt },
           message: `Completed ${label}.`,
@@ -162,6 +200,7 @@ export function forkWorkflowStep<
   const TOutputContracts extends StepContractSourceMap,
   const TBranches extends readonly WorkflowForkBranch[],
 >(input: ProductForkWorkflowStepInput<TInputContracts, TOutputContracts, TBranches>): StepDefinition {
+  const childSessions = new Map<string, ChildWorkflowSession>();
   return createContractedRuntimeStep({
     description: input.description,
     id: input.id,
@@ -192,8 +231,15 @@ export function forkWorkflowStep<
         type: "fork.started",
       });
       const settled = await Promise.allSettled(branches.map((branch) => branch.run({
+        drive: {
+          answers: context.answers,
+          hookAnswers: context.hookAnswers,
+          state: context.state,
+          step: context.step,
+        },
         forkSpanId,
         parentStep,
+        sessions: childSessions,
       })));
       const failures = settled.flatMap((result, index) =>
         result.status === "rejected"
@@ -211,6 +257,26 @@ export function forkWorkflowStep<
           type: "fork.failed",
         });
         throw new WorkflowForkError(failures);
+      }
+      const waitingBranches = settled.flatMap((result) =>
+        result.status === "fulfilled" && isForkBranchWaiting(result.value)
+          ? [result.value]
+          : []
+      );
+      if (waitingBranches.length > 0) {
+        emitForkEvent(parentStep, {
+          detail: { waitingBranches: waitingBranches.length },
+          message: `Waiting in ${waitingBranches.length} fork branch${waitingBranches.length === 1 ? "" : "es"}.`,
+          name: input.label ?? input.id,
+          parentSpanId: parentStepSpanId(context.step),
+          spanId: forkSpanId,
+          status: "unset",
+          type: "fork.waiting",
+        });
+        return wait({
+          hooks: waitingBranches.flatMap((branch) => branch.hooks),
+          questions: waitingBranches.flatMap((branch) => branch.questions),
+        });
       }
       emitForkEvent(parentStep, {
         detail: { branches: branches.map(branchShape) },

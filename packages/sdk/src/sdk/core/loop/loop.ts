@@ -30,6 +30,7 @@ import type {
   CommandRunEvent,
   CommandRunEventInput,
   HookDefinition,
+  HookRequest,
   StepContractRecord,
   StepContractSourceMap,
   StepDefinition,
@@ -66,6 +67,19 @@ export function ask(question: Question | Question[], state?: StepState): StepRes
     questions: Array.isArray(question) ? question : [question],
     state,
     type: "ask",
+  };
+}
+
+export function wait(input: {
+  hooks?: HookRequest[];
+  questions?: Question[];
+  state?: StepState;
+}): StepResult<never> {
+  return {
+    hooks: input.hooks ?? [],
+    questions: input.questions ?? [],
+    state: input.state,
+    type: "wait",
   };
 }
 
