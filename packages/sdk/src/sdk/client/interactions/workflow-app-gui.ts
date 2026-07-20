@@ -10,6 +10,9 @@ import {
   type WorkflowRenderLayout,
   type WorkflowRenderModel,
 } from "../workflow-render/index.js";
+import {
+  workflowInitialNodeMeasurements,
+} from "../workflow-render/layout.js";
 import type { WorkflowApp } from "./workflow-app/types.js";
 import {
   createWorkflowAppRuntime,
@@ -115,7 +118,7 @@ export function createWorkflowGuiPayload(
         layout: computeWorkflowRenderLayout(
           model,
           workflowRenderLayoutProfiles.web,
-          initialNodeMeasurements(model),
+          workflowInitialNodeMeasurements(model),
         ),
         model,
         title: workflow.title,
@@ -132,15 +135,6 @@ function guiTrigger(trigger: WorkflowTriggerDescriptor, defaultInput?: string): 
     ...trigger,
     input: defaultInput && input.kind === "prompt" ? { ...input, defaultValue: defaultInput } : input,
   };
-}
-
-function initialNodeMeasurements(model: WorkflowRenderModel): Record<string, { height: number; width: number }> {
-  const measurements: Record<string, { height: number; width: number }> = {};
-  for (const node of model.nodes) {
-    if (node.kind === "initial") measurements[node.id] = { height: 24, width: 24 };
-    if (node.childWorkflow) Object.assign(measurements, initialNodeMeasurements(node.childWorkflow.model));
-  }
-  return measurements;
 }
 
 export function runWorkflowAppGui(
