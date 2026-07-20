@@ -475,8 +475,8 @@ describe("root workflow authoring", () => {
     )?.detail as { childRunId?: string } | undefined)?.childRunId;
 
     expect(session.status).toBe("waiting");
-    expect(session.pendingQuestions.map((question) => question.id)).toEqual(["audience"]);
-    await session.answer({ questionId: "audience", value: "developers" });
+    expect(session.pendingQuestions.map((question) => question.id)).toEqual(["clarify.audience"]);
+    await session.answer({ questionId: "clarify.audience", value: "developers" });
     await session.resume();
 
     expect(session.status).toBe("completed");

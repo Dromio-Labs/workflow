@@ -127,6 +127,7 @@ export type DoneStepResult<TOutput = unknown> = {
 export type StepResult<TOutput = unknown> =
   | DoneStepResult<TOutput>
   | { questions: Question[]; state?: StepState; type: "ask" }
+  | { hooks: HookRequest[]; questions?: Question[]; state?: StepState; type: "wait" }
   | { reason: string; state?: StepState; type: "retry" }
   | { reason?: string; state?: StepState; stepId: string; type: "goto" }
   | { error: string; state?: StepState; type: "fail" };
@@ -134,6 +135,7 @@ export type StepResult<TOutput = unknown> =
 export type StepContext<TUse = unknown, TInput = unknown> = {
   answers: Record<string, unknown>;
   emit: (event: EventPayload) => void;
+  hookAnswers: Readonly<Record<string, unknown>>;
   input: TInput;
   operation<T>(
     input: StepOperationInput,

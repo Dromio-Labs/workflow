@@ -173,15 +173,20 @@ describe("workflow product steps", () => {
     );
   });
 
-  test("reports nested waiting as an unsupported parent-step failure", async () => {
-    const child = loop({
+  test("pauses the parent while a child question waits and resumes it through the parent", async () => {
+    const child = loop<unknown, Record<string, never>>({
       id: "testing.waiting-child",
-      steps: [createRuntimeStep("question", () => ask({
-        id: "approval",
-        prompt: "Continue?",
-        title: "Approval",
-        type: "text",
-      }))],
+      steps: [createRuntimeStep<unknown, Record<string, never>>("question", ({ answers }) => {
+        if (!("approval" in answers)) {
+          return ask({
+            id: "approval",
+            prompt: "Continue?",
+            title: "Approval",
+            type: "text",
+          });
+        }
+        return done({ result: `approved:${answers.approval}` });
+      })],
     });
     const parent = loop({
       id: "testing.waiting-parent",
@@ -191,14 +196,23 @@ describe("workflow product steps", () => {
           createWorkflow: child,
           id: "run-child",
           input: { source: textSchema },
-          mapOutput: () => ({ result: "unreachable" }),
+          mapOutput: (session) => ({ result: textSchema.parse(session.state.result) }),
           output: { result: textSchema },
           workflow: { documentId: "testing.waiting-child", id: "testing.waiting-child" },
         }),
       ],
     });
 
-    await expect(parent.start({ source: "value" })).rejects.toThrow("waiting for input");
+    const session = await parent.start({ source: "value" });
+
+    expect(session.status).toBe("waiting");
+    expect(session.pendingQuestions.map((question) => question.id)).toEqual(["run-child.approval"]);
+
+    await session.answer({ questionId: "run-child.approval", value: "yes" });
+    await session.resume();
+
+    expect(session.status).toBe("completed");
+    expect(session.state.result).toBe("approved:yes");
   });
 
   test("propagates a failed child workflow by default", async () => {

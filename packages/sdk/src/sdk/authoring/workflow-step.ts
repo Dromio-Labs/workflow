@@ -1,11 +1,11 @@
 import {
-  ask,
+  wait,
   type InferStepContractInput,
   type InferStepContractOutput,
   type StepContractSourceMap,
 } from "../core/index.js";
 import {
-  runChildWorkflow,
+  driveChildWorkflow,
   type ChildWorkflowSession,
 } from "../product/workflow/child-workflow.js";
 import {
@@ -90,29 +90,32 @@ export function workflowStep<
         workflows: input.workflow.workflows,
       });
       try {
-        const session = await runChildWorkflow({
-          allowWaiting: true,
-          answers: context.answers,
+        const outcome = await driveChildWorkflow({
           childWorkflowId: childWorkflow.id,
+          context: {
+            answers: context.answers,
+            hookAnswers: context.hookAnswers,
+            state: context.state,
+            step: context.step,
+          },
           emit: context.emit,
           input: context.input satisfies InferStepContractInput<TInputContracts>,
+          namespace: context.step.id,
           parentStepId: context.step.id,
           parentTrace: {
             spanId: `step:${context.step.id}:attempt:${context.step.attempt}`,
             traceId: context.step.runId,
           },
           phase: "child workflow",
-          session: childSessions.get(sessionKey),
+          sessions: childSessions,
           spanIdPrefix: `child:${context.step.id}`,
           stepIdPrefix: context.step.id,
           workflow: childWorkflow,
         });
-        if (session.status === "waiting") {
-          childSessions.set(sessionKey, session);
-          return ask(session.pendingQuestions ?? []);
+        if (outcome.status === "waiting") {
+          return wait({ hooks: outcome.hooks, questions: outcome.questions });
         }
-        childSessions.delete(sessionKey);
-        return outputFromState(childWorkflow.output, session.state);
+        return outputFromState(childWorkflow.output, outcome.session.state);
       } catch (error) {
         childSessions.delete(sessionKey);
         throw error;

@@ -1,6 +1,7 @@
 import {
   createContractedRuntimeStep,
   done,
+  wait,
   type EventPayload,
   type InferStepContractInput,
   type InferStepContractOutput,
@@ -11,8 +12,9 @@ import {
   type StepState,
 } from "../../core/index.js";
 import {
-  runChildWorkflow,
-  runForEachWorkflow,
+  driveChildWorkflow,
+  FailedChildWorkflowError,
+  memoizedChildWorkflowCompletion,
   type ChildWorkflowCompletedContext,
   type ChildWorkflowFailedContext,
   type ChildWorkflowIterationContext,
@@ -117,6 +119,7 @@ export function workflowStep<
   TChildInput,
   TSession extends ChildWorkflowSession,
 >(input: ProductWorkflowStepInput<TInputContracts, TOutputContracts, TChildInput, TSession>) {
+  const childSessions = new Map<string, ChildWorkflowSession>();
   return createContractedRuntimeStep({
     description: input.description,
     id: input.id,
@@ -132,18 +135,29 @@ export function workflowStep<
         ? input.createWorkflow(scope)
         : input.createWorkflow;
       assertWorkflowIdentity(input.workflow, childWorkflow);
-      const session = await runChildWorkflow({
+      const outcome = await driveChildWorkflow<TChildInput, TSession>({
         childWorkflowId: input.workflow.id,
+        context: {
+          answers: context.answers,
+          hookAnswers: context.hookAnswers,
+          state: context.state,
+          step: context.step,
+        },
         emit: context.emit,
         input: input.childInput(scope),
+        namespace: context.step.id,
         parentStepId: context.step.id,
         parentTrace: parentStepTrace(context.step),
         phase: input.phase ?? "child workflow",
+        sessions: childSessions,
         spanIdPrefix: `child:${context.step.id}`,
         stepIdPrefix: context.step.id,
         workflow: childWorkflow,
       });
-      return done(await input.mapOutput(session, scope));
+      if (outcome.status === "waiting") {
+        return wait({ hooks: outcome.hooks, questions: outcome.questions });
+      }
+      return done(await input.mapOutput(outcome.session, scope));
     },
   });
 }
@@ -198,6 +212,7 @@ export function forEachWorkflowStep<
   TSession,
   TPrepared
 >) {
+  const childSessions = new Map<string, ChildWorkflowSession>();
   return createContractedRuntimeStep({
     description: input.description,
     id: input.id,
@@ -215,37 +230,76 @@ export function forEachWorkflowStep<
           ? await input.prepare(baseScope)
           : undefined as TPrepared,
       };
-      const results = await runForEachWorkflow<TItem, TChildInput, TSession>({
-        childWorkflowId: input.workflow.id,
-        continueOnError: input.continueOnError,
-        emit: context.emit,
-        input: (item, iteration) => input.childInput(item, { ...parentScope, ...iteration }),
-        itemId: input.itemId
-          ? (item, iteration) => input.itemId!(item, { ...parentScope, ...iteration })
-          : undefined,
-        itemKind: input.itemKind,
-        itemLabel: input.itemLabel
-          ? (item, iteration) => input.itemLabel!(item, { ...parentScope, ...iteration })
-          : undefined,
-        items: input.items(parentScope),
-        onItemCompleted: input.onItemCompleted
-          ? (iteration) => input.onItemCompleted!({ ...parentScope, ...iteration })
-          : undefined,
-        onItemFailed: input.onItemFailed
-          ? (iteration) => input.onItemFailed!({ ...parentScope, ...iteration })
-          : undefined,
-        onItemStarted: input.onItemStarted
-          ? (iteration) => input.onItemStarted!({ ...parentScope, ...iteration })
-          : undefined,
-        parentStepId: context.step.id,
-        parentTrace: parentStepTrace(context.step),
-        phase: input.phase ?? "child workflow",
-        workflow: (item, iteration) => {
+      const items = input.items(parentScope);
+      const results: Array<ChildWorkflowIterationResult<TItem, TSession>> = [];
+      const total = items.length;
+      for (const [index, item] of items.entries()) {
+        const seed = { index, item, itemId: "", itemLabel: "", total };
+        const itemId = input.itemId
+          ? input.itemId(item, { ...parentScope, ...seed })
+          : String(index);
+        const labelSeed = { ...seed, itemId };
+        const itemLabel = input.itemLabel
+          ? input.itemLabel(item, { ...parentScope, ...labelSeed })
+          : itemId;
+        const iteration = { index, item, itemId, itemLabel, total };
+        const namespace = `${context.step.id}.${itemId}`;
+        const memo = memoizedChildWorkflowCompletion(context.state, namespace);
+        if (memo) {
+          results.push({ ...iteration, session: memo as unknown as TSession, status: "completed" });
+          continue;
+        }
+        try {
           const childWorkflow = input.createWorkflow(item, { ...parentScope, ...iteration });
           assertWorkflowIdentity(input.workflow, childWorkflow);
-          return childWorkflow;
-        },
-      });
+          await input.onItemStarted?.({ ...parentScope, ...iteration });
+          const outcome = await driveChildWorkflow<TChildInput, TSession>({
+            childWorkflowId: input.workflow.id,
+            context: {
+              answers: context.answers,
+              hookAnswers: context.hookAnswers,
+              state: context.state,
+              step: context.step,
+            },
+            detail: { itemId, itemKind: input.itemKind },
+            emit: context.emit,
+            input: input.childInput(item, { ...parentScope, ...iteration }),
+            itemId,
+            itemKind: input.itemKind,
+            iterationIndex: index,
+            iterationLabel: itemLabel,
+            iterationTotal: total,
+            messagePrefix: itemLabel,
+            namespace,
+            parentStepId: context.step.id,
+            parentTrace: parentStepTrace(context.step),
+            phase: input.phase ?? "child workflow",
+            retainCompleted: true,
+            sessions: childSessions,
+            spanIdPrefix: [
+              "child",
+              context.step.id,
+              input.itemKind ? `${input.itemKind}:${itemId}` : itemId,
+            ].join(":"),
+            stepIdPrefix: [context.step.id, itemId].join("."),
+            workflow: childWorkflow,
+          });
+          if (outcome.status === "waiting") {
+            return wait({ hooks: outcome.hooks, questions: outcome.questions });
+          }
+          const completed = { ...iteration, session: outcome.session, status: "completed" as const };
+          await input.onItemCompleted?.({ ...parentScope, ...completed });
+          results.push(completed);
+        } catch (error) {
+          const session = error instanceof FailedChildWorkflowError
+            ? error.session as TSession | undefined
+            : undefined;
+          const failed = { ...iteration, error, session, status: "failed" as const };
+          results.push(failed);
+          await input.onItemFailed?.({ ...parentScope, ...failed });
+          if (!input.continueOnError) throw error;
+        }
+      }
       return done(await input.collect(results, parentScope));
     },
   });

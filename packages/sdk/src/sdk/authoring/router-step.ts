@@ -1,17 +1,16 @@
 import {
-  ask,
   createContractedRuntimeStep,
   done,
   jsonSchemaFromContractSource,
+  wait,
   type EventPayload,
   type InferStepContractInput,
   type InferStepContractOutput,
-  type LoopHydrationSnapshot,
   type StepContractSourceMap,
   type StepRuntimeMetadata,
 } from "../core/index.js";
 import {
-  runChildWorkflow,
+  driveChildWorkflow,
   type ChildWorkflowSession,
 } from "../product/workflow/child-workflow.js";
 import {
@@ -64,12 +63,10 @@ type RouterSelectionScope<TInputContracts extends StepContractSourceMap> = {
 
 type RouterSession = {
   routeId: string;
-  session: ChildWorkflowSession;
 };
 
 type RouterDurableState = {
   routeId: string;
-  snapshot: LoopHydrationSnapshot;
 };
 
 export class UnknownWorkflowRouteError extends Error {
@@ -121,6 +118,7 @@ export function routerStep<
     output: outputContracts,
   }, (createInput) => {
     const sessions = new Map<string, RouterSession>();
+    const childSessions = new Map<string, ChildWorkflowSession>();
     return createContractedRuntimeStep({
       description: input.description,
       id: createInput.stepId ?? input.id,
@@ -167,10 +165,14 @@ export function routerStep<
             use: context.use,
             workflows: child.workflows,
           });
-          const session = await runChildWorkflow({
-            allowWaiting: true,
-            answers: context.answers,
+          const outcome = await driveChildWorkflow({
             childWorkflowId: child.document.id,
+            context: {
+              answers: context.answers,
+              hookAnswers: context.hookAnswers,
+              state: context.state,
+              step: context.step,
+            },
             emit: context.emit,
             input: input.mapInput
               ? await input.mapInput(scope, routeId)
@@ -178,39 +180,39 @@ export function routerStep<
             itemId: routeId,
             itemKind: "router-route",
             iterationLabel: child.definition.title,
+            namespace: `${context.step.id}.${routeId}`,
             parentStepId: context.step.id,
             parentTrace: {
               spanId,
               traceId: context.step.runId,
             },
             phase: "router route",
-            session: previous?.session,
-            snapshot: previous ? undefined : durable?.snapshot as LoopHydrationSnapshot<InferStepContractInput<RouterInputContracts<TRoutes>>> | undefined,
+            sessions: childSessions,
             spanIdPrefix: `${spanId}:child`,
             stepIdPrefix: `${context.step.id}.${routeId}`,
             workflow,
           });
-          if (session.status === "waiting") {
-            sessions.set(sessionKey, { routeId, session });
-            const snapshot = session.snapshot?.();
-            if (!snapshot) throw new Error(`Child workflow ${session.runId} cannot create a durable snapshot.`);
+          if (outcome.status === "waiting") {
+            sessions.set(sessionKey, { routeId });
             emitRouterEvent(context.emit, context.step, spanId, "router.waiting", `Waiting in ${routeId}.`, {
-              childRunId: session.runId,
+              childRunId: outcome.session.runId,
               childWorkflowId: child.document.id,
               routeId,
             });
-            return ask(session.pendingQuestions ?? [], {
-              [stateKey]: { routeId, snapshot } satisfies RouterDurableState,
+            return wait({
+              hooks: outcome.hooks,
+              questions: outcome.questions,
+              state: { [stateKey]: { routeId } satisfies RouterDurableState },
             });
           }
           sessions.delete(sessionKey);
           emitRouterEvent(context.emit, context.step, spanId, "router.completed", `Completed ${routeId}.`, {
-            childRunId: session.runId,
+            childRunId: outcome.session.runId,
             childWorkflowId: child.document.id,
             routeId,
           });
           return done(
-            selectValues(outputContracts, session.state) as InferStepContractOutput<RouterOutputContracts<TRoutes>>,
+            selectValues(outputContracts, outcome.session.state) as InferStepContractOutput<RouterOutputContracts<TRoutes>>,
             { [stateKey]: undefined },
           );
         } catch (error) {
@@ -230,7 +232,6 @@ function routerDurableState(value: unknown): RouterDurableState | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const candidate = value as Partial<RouterDurableState>;
   if (typeof candidate.routeId !== "string") return undefined;
-  if (!candidate.snapshot || typeof candidate.snapshot !== "object") return undefined;
   return candidate as RouterDurableState;
 }
 
