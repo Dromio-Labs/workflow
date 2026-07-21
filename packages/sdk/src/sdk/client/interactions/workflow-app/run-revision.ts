@@ -6,12 +6,40 @@ export function isWorkflowAppRunSnapshotNewer(
   candidate: WorkflowAppRunSnapshot,
   current: WorkflowAppRunSnapshot,
 ): boolean {
-  const candidateRevision = lastEventIndex(candidate);
-  const currentRevision = lastEventIndex(current);
-  if (candidateRevision !== currentRevision) return candidateRevision > currentRevision;
-  return candidate.events.length > current.events.length;
+  const candidateRevision = workflowAppRunSnapshotRevision(candidate);
+  const currentRevision = workflowAppRunSnapshotRevision(current);
+  if (currentRevision.terminal && !candidateRevision.terminal) return false;
+  if (candidateRevision.eventIndex !== currentRevision.eventIndex) {
+    return candidateRevision.eventIndex > currentRevision.eventIndex;
+  }
+  if (candidateRevision.eventCount !== currentRevision.eventCount) {
+    return candidateRevision.eventCount > currentRevision.eventCount;
+  }
+  return candidateRevision.terminal && !currentRevision.terminal;
 }
 
-function lastEventIndex(snapshot: WorkflowAppRunSnapshot): number {
-  return snapshot.events.reduce((maximum, event) => Math.max(maximum, event.index), -1);
+export function areWorkflowAppRunSnapshotsEquivalent(
+  left: WorkflowAppRunSnapshot,
+  right: WorkflowAppRunSnapshot,
+): boolean {
+  return JSON.stringify(withoutAttachedArtifactRefs(left)) ===
+    JSON.stringify(withoutAttachedArtifactRefs(right));
+}
+
+export function workflowAppRunSnapshotRevision(snapshot: WorkflowAppRunSnapshot): {
+  readonly eventCount: number;
+  readonly eventIndex: number;
+  readonly terminal: boolean;
+} {
+  return {
+    eventCount: snapshot.events.length,
+    eventIndex: snapshot.events.reduce((maximum, event) => Math.max(maximum, event.index), -1),
+    terminal: ["cancelled", "completed", "failed"].includes(snapshot.status),
+  };
+}
+
+function withoutAttachedArtifactRefs(snapshot: WorkflowAppRunSnapshot): WorkflowAppRunSnapshot {
+  if (!snapshot.artifactRefs) return snapshot;
+  const { artifactRefs: _artifactRefs, ...run } = snapshot;
+  return run;
 }

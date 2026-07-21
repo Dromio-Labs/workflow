@@ -4,3 +4,8 @@ export {
   storedArtifactContentFromBytes,
   storedArtifactContentToBytes,
 } from "./artifact-content-codec.js";
+export {
+  areWorkflowAppRunSnapshotsEquivalent,
+  isWorkflowAppRunSnapshotNewer,
+  workflowAppRunSnapshotRevision,
+} from "../client/interactions/workflow-app/run-revision.js";

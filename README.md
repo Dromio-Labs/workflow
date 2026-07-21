@@ -39,6 +39,14 @@ Basic steps and workflows do not require global configuration. Features that
 reach models, storage, control planes, or user interfaces receive their adapters
 at the application boundary, keeping workflow logic portable.
 
+## Durable run writes
+
+Control-plane stores persist each run with a monotonic revision. Callers that
+replace a run snapshot must provide the revision they observed; a concurrent
+winner makes a stale write fail with an explicit revision conflict. Retry that
+operation from a fresh read instead of overwriting newer events. The bundled
+SQLite store enforces the same compare-and-swap contract across restarts.
+
 ## Examples and guides
 
 The Workflow SDK guide progresses from the first typed workflow through

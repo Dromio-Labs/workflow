@@ -1,18 +1,13 @@
 import type {
   EnqueueTriggerResult,
   RuntimeRetentionResult,
-  StoredWorkflowRunSnapshot,
   TriggerJobStatus,
   WorkflowRuntimeStore,
 } from "./types.js";
-import type {
-  EventRecord,
-} from "../core/index.js";
 import {
   leaseExpiresAt,
 } from "@dromio/workflow-kernel";
 import {
-  attachWorkflowArtifactRefs,
   getWorkflowArtifactContent,
   listWorkflowArtifactRefs,
   putWorkflowArtifactContent,
@@ -26,7 +21,6 @@ import {
   upsertDatasetRows,
 } from "./sqlite-runtime-store/datasets.js";
 import {
-  isTerminalRunStatus,
   openRuntimeDb,
   requireTriggerJob,
   rowToTriggerJob,
@@ -41,23 +35,19 @@ import {
   putSignalOccurrence as putSqliteSignalOccurrence,
   syncSignalWaits as syncSqliteSignalWaits,
 } from "./sqlite-runtime-store/signals.js";
+import {
+  appendWorkflowRunEvents as appendSqliteWorkflowRunEvents,
+  getWorkflowRun as getSqliteWorkflowRun,
+  listWorkflowRuns as listSqliteWorkflowRuns,
+  putWorkflowRun as putSqliteWorkflowRun,
+} from "./sqlite-runtime-store/runs.js";
 
 export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRuntimeStore {
   const database = openRuntimeDb(filePath);
 
   return {
     appendWorkflowRunEvents(runId, events) {
-      const insert = database.prepare(
-        `insert or replace into workflow_events (
-          run_id, event_index, event_type, event_json, timestamp
-        ) values (?, ?, ?, ?, ?)`,
-      );
-      const transaction = database.transaction((items: EventRecord[]) => {
-        for (const event of items) {
-          insert.run(runId, event.index, event.type, JSON.stringify(event), event.timestamp);
-        }
-      });
-      transaction(events);
+      appendSqliteWorkflowRunEvents(database, runId, events);
     },
     claimNextSignalDelivery(input) {
       return claimNextSqliteSignalDelivery(database, input);
@@ -294,10 +284,7 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       return getWorkflowArtifactContent(database, artifactId);
     },
     getWorkflowRun(id) {
-      const row = database.query("select snapshot_json from workflow_runs where id = ?").get(id) as
-        | { snapshot_json: string }
-        | null;
-      return row ? attachWorkflowArtifactRefs(database, JSON.parse(row.snapshot_json) as StoredWorkflowRunSnapshot) : undefined;
+      return getSqliteWorkflowRun(database, id);
     },
     countDatasetRows(definition) {
       return countDatasetRows(database, definition);
@@ -336,23 +323,7 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       return rows.map(rowToTriggerJob);
     },
     listWorkflowRuns(filter = {}) {
-      const clauses: string[] = [];
-      const params: Array<string | number | null> = [];
-      if (filter.workflowId) {
-        clauses.push("workflow_id = ?");
-        params.push(filter.workflowId);
-      }
-      if (filter.originType) {
-        clauses.push("origin_type = ?");
-        params.push(filter.originType);
-      }
-      const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
-      const rows = database.query(
-        `select snapshot_json from workflow_runs ${where} order by updated_at desc`,
-      ).all(...params) as Array<{ snapshot_json: string }>;
-      return rows.map((row) =>
-        attachWorkflowArtifactRefs(database, JSON.parse(row.snapshot_json) as StoredWorkflowRunSnapshot)
-      );
+      return listSqliteWorkflowRuns(database, filter);
     },
     markTriggerJobRunning(input) {
       const current = requireTriggerJob(database, input.jobId);
@@ -378,33 +349,7 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       return putSqliteSignalOccurrence(database, input);
     },
     putWorkflowRun(snapshot) {
-      database.run(
-        `insert into workflow_runs (
-          id, workflow_id, status, input_json, origin_type, origin_json, snapshot_json,
-          created_at, updated_at, completed_at
-        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        on conflict(id) do update set
-          workflow_id = excluded.workflow_id,
-          status = excluded.status,
-          input_json = excluded.input_json,
-          origin_type = excluded.origin_type,
-          origin_json = excluded.origin_json,
-          snapshot_json = excluded.snapshot_json,
-          updated_at = excluded.updated_at,
-          completed_at = excluded.completed_at`,
-        [
-          snapshot.runId,
-          snapshot.workflowId,
-          snapshot.status,
-          JSON.stringify(snapshot.input),
-          snapshot.origin?.type ?? null,
-          JSON.stringify(snapshot.origin ?? null),
-          JSON.stringify(snapshot),
-          snapshot.events[0]?.timestamp ?? new Date().toISOString(),
-          new Date().toISOString(),
-          isTerminalRunStatus(snapshot.status) ? new Date().toISOString() : null,
-        ],
-      );
+      return putSqliteWorkflowRun(database, snapshot);
     },
     pruneRuntime(input) {
       const workflows = database.query(

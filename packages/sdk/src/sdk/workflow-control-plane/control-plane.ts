@@ -302,8 +302,7 @@ export function createWorkflowControlPlane(input: CreateWorkflowControlPlaneInpu
           void input.runtimeStore.appendWorkflowRunEvents(event.runId, [event]);
         },
       });
-      await liveRuns.persistRun(run);
-      return snapshotWorkflowAppRun(input.app, run);
+      return liveRuns.persistRun(run);
     },
     async startRunFromTriggerJob(jobId, leaseId) {
       const job = await controlPlane.getTriggerJob(jobId);
@@ -325,18 +324,18 @@ export function createWorkflowControlPlane(input: CreateWorkflowControlPlaneInpu
       });
       if (!input.canonicalTriggerExecution) await input.runtimeStore.markTriggerJobRunning({ jobId: job.id, leaseId, now: clock.now().toISOString(), runId: run.runId });
       emitJobChanged(job.id);
-      await liveRuns.persistRun(run);
-      if (isTerminalRunStatus(run.status)) {
-        if (run.status === "completed") {
+      const persisted = await liveRuns.persistRun(run);
+      if (isTerminalRunStatus(persisted.status)) {
+        if (persisted.status === "completed") {
           await controlPlane.completeTriggerJob({ jobId: job.id, leaseId, runId: run.runId });
         } else {
           await controlPlane.failTriggerJob({
-            error: `Workflow run ${run.runId} finished with status ${run.status}.`,
+            error: `Workflow run ${run.runId} finished with status ${persisted.status}.`,
             jobId: job.id,
             leaseId,
           });
         }
-      } else if (run.status === "waiting") {
+      } else if (persisted.status === "waiting") {
         await controlPlane.completeTriggerJob({
           jobId: job.id,
           leaseId,
@@ -344,7 +343,7 @@ export function createWorkflowControlPlane(input: CreateWorkflowControlPlaneInpu
           runId: run.runId,
         });
       }
-      return snapshotWorkflowAppRun(input.app, run);
+      return persisted;
     },
     async *watchRun(runId, options = {}) {
       const fromIndex = options.fromIndex ?? 0;

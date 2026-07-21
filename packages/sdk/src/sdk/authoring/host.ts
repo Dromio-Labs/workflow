@@ -63,7 +63,8 @@ export async function createWorkflowAppHost(
   const persistRuntimeRun = async (run: WorkflowAppRun) => {
     const snapshot = snapshotWorkflowAppRun(app, run);
     const now = new Date().toISOString();
-    await runtimeStore.putWorkflowRun(snapshot);
+    const persisted = await runtimeStore.putWorkflowRun(snapshot);
+    if (!persisted.accepted) return;
     await runtimeStore.syncSignalWaits({
       now,
       runId: snapshot.runId,

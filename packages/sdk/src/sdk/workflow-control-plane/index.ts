@@ -50,6 +50,11 @@ export {
   createSqliteWorkflowRuntimeStore,
 } from "./sqlite-runtime-store.js";
 export {
+  areWorkflowAppRunSnapshotsEquivalent,
+  isWorkflowAppRunSnapshotNewer,
+  workflowAppRunSnapshotRevision,
+} from "../client/interactions/workflow-app/run-revision.js";
+export {
   jsonRenderFromJsonSchema,
   triggerInputJsonRender,
 } from "./trigger-json-render.js";
@@ -91,6 +96,7 @@ export type {
   RuntimeRetentionSummary,
   PublishSignalOccurrenceInput,
   PublishSignalOccurrenceResult,
+  PutWorkflowRunResult,
   SafeHttpEnvelope,
   SignalDeliveryClaim,
   SignalOccurrenceReceipt,
