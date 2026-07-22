@@ -9,6 +9,7 @@ export type QuestionOption = {
 
 export type Question = {
   allowCustom?: boolean;
+  answerSchema?: unknown;
   id: string;
   options?: QuestionOption[];
   prompt: string;
@@ -19,6 +20,7 @@ export type Question = {
 };
 
 export type QuestionConstraints = {
+  answerSchema?: unknown;
   id?: string;
   options?: QuestionOption[];
   prompt?: string;

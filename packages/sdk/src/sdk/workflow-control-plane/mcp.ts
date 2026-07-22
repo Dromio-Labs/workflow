@@ -160,6 +160,16 @@ async function listWorkflowTools(
       required: ["runId"],
       type: "object",
     }, true),
+    tool(`${prefix}.answer_question`, "Answer one pending workflow question and return the updated run.", {
+      additionalProperties: false,
+      properties: {
+        questionId: { type: "string" },
+        runId: { type: "string" },
+        value: {},
+      },
+      required: ["runId", "questionId", "value"],
+      type: "object",
+    }),
     tool(`${prefix}.resume_hook`, "Resume a suspended workflow hook with JSON-compatible output.", {
       additionalProperties: false,
       properties: {
@@ -167,6 +177,7 @@ async function listWorkflowTools(
           additionalProperties: false,
           properties: {
             adapter: { type: "string" },
+            capabilities: { items: { type: "string" }, type: "array" },
             participant: { type: "string" },
           },
           type: "object",
@@ -212,6 +223,14 @@ async function callWorkflowTool(
   if (name === `${prefix}.get_job`) return mcpResult({ job: await controlPlane.getTriggerJob(requiredString(args, "jobId")) });
   if (name === `${prefix}.list_runs`) return mcpResult({ runs: await controlPlane.listRuns(runFilter(args)) });
   if (name === `${prefix}.get_run`) return mcpResult({ run: await controlPlane.getRun(requiredString(args, "runId")) });
+  if (name === `${prefix}.answer_question`) {
+    return mcpResult({
+      run: await controlPlane.answerQuestion(requiredString(args, "runId"), {
+        questionId: requiredString(args, "questionId"),
+        value: requiredValue(args, "value"),
+      }),
+    });
+  }
   if (name === `${prefix}.resume_hook`) {
     return mcpResult({
       run: await controlPlane.resumeHook({
@@ -309,7 +328,7 @@ function requiredValue(args: Record<string, unknown>, key: string): unknown {
   return args[key];
 }
 
-function resumeSource(value: unknown): { adapter?: string; participant?: string } | undefined {
+function resumeSource(value: unknown): { adapter?: string; capabilities?: string[]; participant?: string } | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const source = value as Record<string, unknown>;
   const adapter = typeof source.adapter === "string" && source.adapter.trim()
@@ -318,7 +337,13 @@ function resumeSource(value: unknown): { adapter?: string; participant?: string 
   const participant = typeof source.participant === "string" && source.participant.trim()
     ? source.participant.trim()
     : undefined;
-  return adapter || participant ? { adapter, participant } : undefined;
+  const capabilities = Array.isArray(source.capabilities)
+    ? source.capabilities.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+      .map((item) => item.trim())
+    : undefined;
+  return adapter || participant || capabilities?.length
+    ? { adapter, capabilities, participant }
+    : undefined;
 }
 
 function jobFilter(args: Record<string, unknown>): TriggerJobFilter {

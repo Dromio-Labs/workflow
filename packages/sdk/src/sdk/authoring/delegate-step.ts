@@ -26,6 +26,10 @@ export type DelegateHandoffInput = {
   artifacts?: WorkflowRunArtifactRef[];
   attempt: number;
   capabilities: string[];
+  capabilityRequirements: {
+    preferred: string[];
+    required: string[];
+  };
   context?: JsonValue;
   instructions: string;
   outputSchema: JsonObject;
@@ -36,14 +40,20 @@ export type DelegateHandoffInput = {
   workflowId: string;
 };
 
+export type DelegateCapabilities = string[] | {
+  preferred?: readonly string[];
+  required?: readonly string[];
+};
+
 export type AuthoredDelegateStepInput<
   TInputContracts extends StepContractSourceMap,
   TOutputContracts extends StepContractSourceMap,
 > = Omit<
   AuthoredStepInput<TInputContracts, TOutputContracts>,
-  "implementation" | "kind" | "models" | "prompts" | "run" | "sideEffects"
+  "capabilities" | "implementation" | "kind" | "models" | "prompts" | "run" | "sideEffects"
 > & {
   artifacts?: DelegateValueSource<TInputContracts, WorkflowRunArtifactRef[]>;
+  capabilities?: DelegateCapabilities;
   context?: DelegateValueSource<TInputContracts, JsonValue>;
   instructions: DelegateValueSource<TInputContracts, string>;
   output: TOutputContracts;
@@ -59,8 +69,13 @@ export function delegateStep<
   input: AuthoredDelegateStepInput<TInputContracts, TOutputContracts>,
 ): AuthoredStepDefinition<TInputContracts, TOutputContracts> {
   const outputSchema = delegateOutputSchema(input.id, input.output);
+  const capabilityRequirements = normalizeCapabilities(input.capabilities);
   return baseStep({
     ...input,
+    capabilities: [...new Set([
+      ...capabilityRequirements.required,
+      ...capabilityRequirements.preferred,
+    ])],
     implementation: { kind: "primitive" },
     kind: "delegate",
     sideEffects: ["external.harness.delegation"],
@@ -77,7 +92,11 @@ export function delegateStep<
       const handoff: DelegateHandoffInput = {
         ...(artifacts?.length ? { artifacts } : {}),
         attempt: context.step.attempt,
-        capabilities: [...(input.capabilities ?? [])],
+        capabilities: [...new Set([
+          ...capabilityRequirements.required,
+          ...capabilityRequirements.preferred,
+        ])],
+        capabilityRequirements,
         ...(selectedContext !== undefined ? { context: selectedContext } : {}),
         instructions,
         outputSchema,
@@ -98,6 +117,18 @@ export function delegateStep<
       }), handoff);
     },
   });
+}
+
+function normalizeCapabilities(
+  value: DelegateCapabilities | undefined,
+) {
+  if (Array.isArray(value)) {
+    return { preferred: [...new Set(value)], required: [] };
+  }
+  return {
+    preferred: [...new Set(value?.preferred ?? [])],
+    required: [...new Set(value?.required ?? [])],
+  };
 }
 
 function delegateOutputSchema(

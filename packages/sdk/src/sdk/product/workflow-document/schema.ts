@@ -63,11 +63,17 @@ export const workflowDocumentEndSchema = z.object({
 });
 
 export const workflowDocumentNodeKindSchema = z.enum([
+  "adapter",
+  "approval",
+  "builtin",
+  "composite",
+  "delegate",
   "evaluation",
   "forEach",
   "fork",
   "gate",
   "model",
+  "primitive",
   "question",
   "router",
   "step",
@@ -93,6 +99,7 @@ export const workflowDocumentNodeSchema = z.object({
   id: z.string().trim().min(1),
   kind: workflowDocumentNodeKindSchema.optional(),
   label: z.string().optional(),
+  role: z.string().trim().min(1).optional(),
 });
 
 export const workflowDocumentEdgeSchema = z.object({

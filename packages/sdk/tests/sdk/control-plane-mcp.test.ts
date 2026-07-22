@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
+  createWorkflowAppHost,
+  step,
+  workflow,
+  workflowApp,
+} from "../../src/sdk/index.js";
+import {
   createWorkflowControlPlaneMcpProvider,
 } from "@dromio/workflow/workflow-control-plane/mcp";
 import type {
@@ -8,6 +14,7 @@ import type {
   TriggerJobSnapshot,
   WorkflowControlPlane,
 } from "@dromio/workflow/workflow-control-plane";
+import { z } from "zod";
 
 describe("workflow control-plane MCP provider", () => {
   test("lists workflow tools without exposing protocol discovery as a user tool", async () => {
@@ -18,6 +25,7 @@ describe("workflow control-plane MCP provider", () => {
 
     expect(tools).toContain("dromio.list_workflows");
     expect(tools).toContain("dromio.fire_trigger");
+    expect(tools).toContain("dromio.answer_question");
     expect(tools).toContain("dromio.resume_hook");
     expect(tools).toContain("dromio.trigger.process-images.request");
     expect(tools).not.toContain("tools/list");
@@ -105,6 +113,120 @@ describe("workflow control-plane MCP provider", () => {
     });
   });
 
+  test("answers questions through the canonical control-plane operation", async () => {
+    const answered: Array<{ input: { questionId: string; value: unknown }; runId: string }> = [];
+    const controlPlane = mockControlPlane({ answered });
+    const provider = createWorkflowControlPlaneMcpProvider({ controlPlane, toolPrefix: "dromio" });
+
+    const result = await provider.callTool("dromio.answer_question", {
+      questionId: "stage",
+      runId: "run-question",
+      value: "mvp",
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(answered).toEqual([{
+      input: { questionId: "stage", value: "mvp" },
+      runId: "run-question",
+    }]);
+    expect(result.structuredContent).toMatchObject({
+      run: { runId: "run-question", status: "completed" },
+    });
+  });
+
+  test("answers a real waiting workflow question through MCP and returns the updated run", async () => {
+    const askStage = step.ask({
+      answer: z.enum(["prototype", "mvp", "production"]),
+      id: "requirements.ask-stage",
+      input: { request: z.string() },
+      mapAnswer: ({ answer }) => ({ stage: answer }),
+      output: { stage: z.string() },
+      question: () => ({
+        id: "stage",
+        options: ["prototype", "mvp", "production"].map((value) => ({ label: value, value })),
+        prompt: "How far should this app go?",
+        type: "choice",
+      }),
+    });
+    const askWorkflow = workflow({
+      catalog: [askStage],
+      document: {
+        edges: [
+          { id: "trigger-ask", source: "trigger", target: "ask" },
+          { id: "ask-end", source: "ask", target: "end" },
+        ],
+        end: { id: "end", output: { stage: { jsonSchema: { type: "string" } } }, type: "result" },
+        id: "requirements",
+        nodes: [{ catalogItemId: askStage.id, id: "ask", kind: "question" }],
+        trigger: { id: "trigger", input: { request: { jsonSchema: { type: "string" } } }, type: "manual" },
+        version: 1,
+      },
+      input: { request: z.string() },
+      output: { stage: z.string() },
+    });
+    const app = workflowApp({ id: "requirements-app", workflows: [askWorkflow] });
+    const host = await createWorkflowAppHost(app, { storage: { kind: "memory" } });
+    const provider = createWorkflowControlPlaneMcpProvider({
+      controlPlane: host.controlPlane,
+      toolPrefix: "dromio",
+    });
+    const started = await host.controlPlane.startRun({
+      input: "create a todo app",
+      runId: "run-answer-question-mcp",
+      workflowId: "requirements",
+    });
+
+    expect(started.status).toBe("waiting");
+    expect(started.pendingQuestions?.[0]).toMatchObject({
+      answerSchema: { enum: ["prototype", "mvp", "production"] },
+      id: "stage",
+    });
+    expect(started.pendingHooks?.[0]?.schema).toMatchObject({
+      enum: ["prototype", "mvp", "production"],
+    });
+    const unknownQuestion = await provider.callTool("dromio.answer_question", {
+      questionId: "missing",
+      runId: started.runId,
+      value: "mvp",
+    });
+    expect(unknownQuestion.isError).toBe(true);
+    expect((await host.controlPlane.getRun(started.runId))).toMatchObject({
+      pendingQuestions: [{ id: "stage" }],
+      status: "waiting",
+    });
+
+    const invalid = await provider.callTool("dromio.answer_question", {
+      questionId: "stage",
+      runId: started.runId,
+      value: "enterprise",
+    });
+    expect(invalid.isError).not.toBe(true);
+    expect(invalid.structuredContent).toMatchObject({
+      run: { pendingQuestions: [{ id: "stage" }], status: "waiting" },
+    });
+
+    const answered = await provider.callTool("dromio.answer_question", {
+      questionId: "stage",
+      runId: started.runId,
+      value: "mvp",
+    });
+
+    expect(answered.isError).not.toBe(true);
+    expect(answered.structuredContent).toMatchObject({
+      run: {
+        runId: started.runId,
+        state: { stage: "mvp" },
+        status: "completed",
+      },
+    });
+    const unknown = await provider.callTool("dromio.answer_question", {
+      questionId: "stage",
+      runId: "run-unknown",
+      value: "mvp",
+    });
+    expect(unknown.isError).toBe(true);
+  });
+
   test("resumes hooks through Streamable HTTP JSON-RPC", async () => {
     const resumed: Array<Record<string, unknown>> = [];
     const provider = createWorkflowControlPlaneMcpProvider({
@@ -166,6 +288,7 @@ describe("workflow control-plane MCP provider", () => {
 });
 
 function mockControlPlane(input: {
+  answered?: Array<{ input: { questionId: string; value: unknown }; runId: string }>;
   enqueued?: EnqueueTriggerInput[];
   resumed?: Array<Record<string, unknown>>;
 } = {}): WorkflowControlPlane {
@@ -196,6 +319,17 @@ function mockControlPlane(input: {
   }];
 
   return {
+    async answerQuestion(runId: string, answerInput: { questionId: string; value: unknown }) {
+      input.answered?.push({ input: answerInput, runId });
+      return {
+        events: [],
+        input: {},
+        origin: { type: "mcp" },
+        runId,
+        status: "completed",
+        workflowId: "planner",
+      };
+    },
     async enqueueTrigger(enqueueInput: EnqueueTriggerInput) {
       input.enqueued?.push(enqueueInput);
       return {

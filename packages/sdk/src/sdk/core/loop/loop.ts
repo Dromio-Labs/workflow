@@ -160,6 +160,7 @@ const runtimeStepFactory = Object.assign(
         maxRetries: options.maxRetries,
         models: options.models,
         output: normalizeStepContracts(id, "output", options.output),
+        questionResolvers: options.questionResolvers,
         run,
       };
   },
@@ -177,6 +178,7 @@ const runtimeStepFactory = Object.assign(
         maxRetries: options.maxRetries,
         models: options.models,
         output: normalizeStepContracts(id, "output", options.output),
+        questionResolvers: options.questionResolvers,
         run: options.run,
       };
     },
@@ -204,6 +206,7 @@ const runtimeStepFactory = Object.assign(
         maxRetries: options.maxRetries,
         models: options.models,
         output,
+        questionResolvers: options.questionResolvers,
         async run(context) {
           const result = await options.run({
             ...context,
@@ -227,6 +230,7 @@ const runtimeStepFactory = Object.assign(
         maxRetries: options.maxRetries,
         models: options.models,
         output: normalizeStepContracts(id, "output", options.output),
+        questionResolvers: options.questionResolvers,
         async run(context) {
           const prompt =
             typeof context.input === "object" &&
@@ -432,13 +436,21 @@ function titleCase(value: string) {
 export function loop<TUse = unknown, TInput = unknown>(
   config: LoopConfig<TUse, TInput>,
 ) {
+  const questionResolvers = Object.assign(
+    {},
+    ...config.steps.map((step) => step.questionResolvers ?? {}),
+    config.questionResolvers ?? {},
+  );
+  const resolvedConfig = Object.keys(questionResolvers).length > 0
+    ? { ...config, questionResolvers }
+    : config;
   return {
     id: config.id,
     graph(): LoopGraphProjection {
-      return projectLoopGraph(config);
+      return projectLoopGraph(resolvedConfig);
     },
     async start(input: TInput, options: LoopStartOptions = {}) {
-      const session = new LoopSession(config, input, options);
+      const session = new LoopSession(resolvedConfig, input, options);
       await session.resume();
       return session;
     },
@@ -446,7 +458,7 @@ export function loop<TUse = unknown, TInput = unknown>(
       snapshot: LoopHydrationSnapshot<TInput>,
       options: LoopHydrateOptions = {},
     ) {
-      return hydrateLoopSession(config, snapshot, options);
+      return hydrateLoopSession(resolvedConfig, snapshot, options);
     },
   };
 }

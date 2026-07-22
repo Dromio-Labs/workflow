@@ -461,6 +461,7 @@ export type WorkflowAppSelectModelWorkerInput = WorkflowAppModelWorkerTarget & {
 
 export type WorkflowAppHookResumeSource = {
   adapter?: string;
+  capabilities?: string[];
   participant?: string;
 };
 

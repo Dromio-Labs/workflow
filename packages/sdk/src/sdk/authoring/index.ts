@@ -13,8 +13,17 @@ export {
   type StepFileArtifactInput,
 } from "./artifacts.js";
 export {
+  clarificationAcceptedAnswerSchema,
+  clarificationAcceptedAnswersSchema,
+  clarifyUntilWorkflow,
+  type AuthoredClarifyUntilWorkflow,
+  type AuthoredClarifyUntilWorkflowInput,
+  type ClarificationAcceptedAnswer,
+} from "./clarify-until-workflow.js";
+export {
   delegateStep,
   type AuthoredDelegateStepInput,
+  type DelegateCapabilities,
   type DelegateHandoffInput,
   type DelegateValueSource,
 } from "./delegate-step.js";
@@ -48,6 +57,19 @@ export {
   type AuthoredEvaluationStepDefinition,
   type EjectedEvaluationWorkflow,
 } from "./evaluate-step.js";
+export {
+  judgeWorkflow,
+  type AuthoredComposedJudgeWorkflowInput,
+  type AuthoredJudgeWorkflow,
+  type AuthoredJudgeWorkflowInput,
+  type AuthoredModelJudgeWorkflowInput,
+  type EjectedJudgmentWorkflow,
+} from "./judge-workflow.js";
+export {
+  judgeUntilWorkflow,
+  type AuthoredJudgeUntilWorkflow,
+  type AuthoredJudgeUntilWorkflowInput,
+} from "./judge-until-workflow.js";
 export type {
   EvaluationEjectOptions,
   EvaluationEjectWriteResult,
@@ -101,7 +123,6 @@ export {
   type AuthoredSleepStepInput,
 } from "./sleep-step.js";
 export {
-  workflow,
   type AuthoredWorkflow,
   type AuthoredWorkflowDefinition,
   type AuthoredWorkflowInput,
@@ -140,6 +161,10 @@ import { baseStep } from "./step.js";
 import { workflowStep } from "./workflow-step.js";
 import { waitForStep } from "./wait-for-step.js";
 import { sleepStep } from "./sleep-step.js";
+import { judgeWorkflow } from "./judge-workflow.js";
+import { judgeUntilWorkflow } from "./judge-until-workflow.js";
+import { clarifyUntilWorkflow } from "./clarify-until-workflow.js";
+import { workflow as baseWorkflow } from "./workflow.js";
 
 export const step = Object.assign(baseStep, {
   approval: approvalStep,
@@ -155,4 +180,10 @@ export const step = Object.assign(baseStep, {
   sleep: sleepStep,
   waitFor: waitForStep,
   workflow: workflowStep,
+});
+
+export const workflow = Object.assign(baseWorkflow, {
+  clarifyUntil: clarifyUntilWorkflow,
+  judge: judgeWorkflow,
+  judgeUntil: judgeUntilWorkflow,
 });

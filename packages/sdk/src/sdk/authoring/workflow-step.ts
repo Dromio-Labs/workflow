@@ -74,6 +74,7 @@ export function workflowStep<
     label: input.label ?? input.workflow.definition.title,
     maxRetries: input.maxRetries,
     output: input.workflow.output,
+    questionResolvers: input.workflow.questionResolvers,
     sideEffects: input.sideEffects,
     tags: input.tags,
     verbs: input.verbs,
@@ -86,6 +87,7 @@ export function workflowStep<
         input: input.workflow.input,
         model: context.model,
         output: input.workflow.output,
+        questionResolvers: input.workflow.questionResolvers,
         use: context.use,
         workflows: input.workflow.workflows,
       });

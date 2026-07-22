@@ -1,5 +1,6 @@
 import {
   ask,
+  jsonSchemaFromContractSource,
   normalizeOperationContract,
   parseOperationContract,
   type InferOperationContractSource,
@@ -69,13 +70,36 @@ export function askStep<
     `${input.id}.answer`,
     input.answer,
   );
+  const resolverId = `${input.id}.answer`;
 
   return baseStep({
     ...input,
     kind: "question",
+    questionResolvers: {
+      [resolverId](resolution) {
+        const result = answerContract.safeParse(resolution.utterance);
+        return result.success
+          ? {
+            confidence: 1,
+            kind: "answer" as const,
+            normalizedValue: result.data,
+            status: "accepted" as const,
+          }
+          : {
+            confidence: 1,
+            kind: "unclear" as const,
+            message: result.issues.map((issue) => issue.message).join("; "),
+            status: "needs_input" as const,
+          };
+      },
+    },
     sideEffects: input.sideEffects ?? ["human.input"],
     async run(context) {
-      const question = input.question({ input: context.input });
+      const question = {
+        ...input.question({ input: context.input }),
+        answerSchema: jsonSchemaFromContractSource(input.answer),
+        resolverId,
+      };
       if (!(question.id in context.answers)) return ask(question);
 
       const answer = parseOperationContract(

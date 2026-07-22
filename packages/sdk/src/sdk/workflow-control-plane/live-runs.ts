@@ -185,6 +185,7 @@ export function createLiveRunController(input: {
     if (session.consumedHookTokens.has(resumeInput.token)) return;
     const hook = run.session.pendingHooks?.find((item) => item.token === resumeInput.token);
     if (!hook) throw input.error("HOOK_NOT_FOUND", "Hook token not found.", 404);
+    assertRequiredHandoffCapabilities(hook, resumeInput.source?.capabilities, input.error);
     try {
       assertHookOutput(hook, resumeInput.value);
     } catch (error) {
@@ -210,6 +211,25 @@ export function createLiveRunController(input: {
   function getLiveRun(runId: string): WorkflowAppRun | undefined {
     return input.runtime.listRuns().find((run) => run.runId === runId);
   }
+}
+
+function assertRequiredHandoffCapabilities(
+  hook: { input?: unknown; kind?: string },
+  supported: string[] | undefined,
+  error: (code: string, message: string, status: number) => Error,
+): void {
+  if (hook.kind !== "handoff_requested" || !isRecord(hook.input)) return;
+  const requirements = hook.input.capabilityRequirements;
+  if (!isRecord(requirements) || !Array.isArray(requirements.required)) return;
+  const required = requirements.required.filter((item): item is string => typeof item === "string");
+  const available = new Set(supported ?? []);
+  const missing = required.filter((item) => !available.has(item));
+  if (missing.length === 0) return;
+  throw error(
+    "HANDOFF_CAPABILITY_REQUIRED",
+    `External harness is missing required capabilities: ${missing.join(", ")}.`,
+    422,
+  );
 }
 
 type DurableHookAnswerSession = WorkflowAppSession & {
