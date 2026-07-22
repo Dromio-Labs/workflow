@@ -31,7 +31,7 @@ export type LiveRunController = {
   answerQuestion(runId: string, input: { questionId: string; value: unknown }): Promise<WorkflowAppRunSnapshot>;
   ensureLiveRun(runId: string): Promise<WorkflowAppRun>;
   getLiveRun(runId: string): WorkflowAppRun | undefined;
-  persistRun(run: WorkflowAppRun): Promise<void>;
+  persistRun(run: WorkflowAppRun): Promise<WorkflowAppRunSnapshot>;
   readRun(runId: string): Promise<WorkflowAppRunSnapshot>;
   resumeHook(input: WorkflowAppResumeHookInput): Promise<WorkflowAppRunSnapshot>;
   resumeRun(runId: string): Promise<WorkflowAppRunSnapshot>;
@@ -50,11 +50,7 @@ export function createLiveRunController(input: {
   return {
     async answerQuestion(runId, answerInput) {
       const run = await ensureLiveRun(runId);
-      const answered = await input.runtime.answerQuestion(run.runId, answerInput);
-      await persistRun(answered);
-      const resumed = await input.runtime.resumeRun(answered.runId);
-      await persistRun(resumed);
-      return snapshotWorkflowAppRun(input.app, resumed);
+      return answerAndResume(run, answerInput);
     },
     ensureLiveRun,
     getLiveRun,
@@ -62,23 +58,43 @@ export function createLiveRunController(input: {
     readRun,
     async resumeHook(resumeInput) {
       const run = await ensureLiveRun(runIdFromHookToken(resumeInput.token, input.error));
+      const hook = run.session.pendingHooks?.find((item) => item.token === resumeInput.token);
+      if (!hook) throw input.error("HOOK_NOT_FOUND", "Hook token not found.", 404);
+      if (hook.kind === "question") {
+        return answerAndResume(run, { questionId: hook.id, value: resumeInput.value });
+      }
       await applyHookAnswer(run, resumeInput);
-      await persistRun(run);
+      const answerPersistence = await persistRunResult(run);
+      if (!answerPersistence.accepted) return answerPersistence.snapshot;
       const resumed = await input.runtime.resumeRun(run.runId);
-      await persistRun(resumed);
-      return snapshotWorkflowAppRun(input.app, resumed);
+      return persistRun(resumed);
     },
     async resumeRun(runId) {
       const run = await ensureLiveRun(runId);
       const resumed = await input.runtime.resumeRun(run.runId);
-      await persistRun(resumed);
-      return snapshotWorkflowAppRun(input.app, resumed);
+      return persistRun(resumed);
     },
   };
 
-  async function persistRun(run: WorkflowAppRun): Promise<void> {
+  async function persistRun(run: WorkflowAppRun): Promise<WorkflowAppRunSnapshot> {
+    return (await persistRunResult(run)).snapshot;
+  }
+
+  async function answerAndResume(
+    run: WorkflowAppRun,
+    answerInput: { questionId: string; value: unknown },
+  ): Promise<WorkflowAppRunSnapshot> {
+    const answered = await input.runtime.answerQuestion(run.runId, answerInput);
+    const answerPersistence = await persistRunResult(answered);
+    if (!answerPersistence.accepted) return answerPersistence.snapshot;
+    const resumed = await input.runtime.resumeRun(answered.runId);
+    return persistRun(resumed);
+  }
+
+  async function persistRunResult(run: WorkflowAppRun) {
     const snapshot = snapshotWorkflowAppRun(input.app, run);
-    await input.runtimeStore.putWorkflowRun(snapshot);
+    const persisted = await input.runtimeStore.putWorkflowRun(snapshot);
+    if (!persisted.accepted) return persisted;
     const now = input.clock.now().toISOString();
     await input.runtimeStore.syncSignalWaits({
       now,
@@ -93,6 +109,7 @@ export function createLiveRunController(input: {
       await input.runtimeStore.enqueueTriggerJob(job);
     }
     await input.runtimeStore.appendWorkflowRunEvents(run.runId, run.events);
+    return persisted;
   }
 
   async function ensureLiveRun(runId: string): Promise<WorkflowAppRun> {
@@ -162,14 +179,6 @@ export function createLiveRunController(input: {
     if (session.consumedHookTokens.has(resumeInput.token)) return;
     const hook = run.session.pendingHooks?.find((item) => item.token === resumeInput.token);
     if (!hook) throw input.error("HOOK_NOT_FOUND", "Hook token not found.", 404);
-    if (hook.kind === "question") {
-      await run.session.answer({
-        questionId: hook.id,
-        value: resumeInput.value,
-      });
-      run.status = run.session.status;
-      return;
-    }
     session.hookAnswers[resumeInput.token] = resumeInput.value;
     session.consumedHookTokens.add(resumeInput.token);
     session.emit({

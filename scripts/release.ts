@@ -4,7 +4,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { canonicalPackageName, packageDirectories } from "./package-closure.js";
+import {
+  canonicalPackageName,
+  packageDirectories,
+  selectCanonicalPublishTarget,
+} from "./package-closure.js";
 
 type Action = "rehearse" | "publish-next" | "verify-next" | "repair-next-tags" | "promote-latest";
 type Manifest = {
@@ -44,6 +48,7 @@ const manifest = JSON.parse(
   await readFile(path.join(artifactDir, "package-registry-manifest.json"), "utf8"),
 ) as Manifest[];
 const ordered = validateRelease(manifest);
+const publishTargets = selectCanonicalPublishTarget(ordered);
 
 if (action === "rehearse") {
   run("bun", ["run", "--cwd", "packages/sdk", "verify:package"], root, {
@@ -54,7 +59,7 @@ if (action === "rehearse") {
 }
 
 if (action === "publish-next") {
-  for (const item of ordered) {
+  for (const item of publishTargets) {
     const publishedIntegrity = npmView(`${item.name}@${item.version}`, "dist.integrity");
     if (publishedIntegrity) {
       if (publishedIntegrity !== item.integrity) {
@@ -72,14 +77,14 @@ if (action === "publish-next") {
       "--provenance",
     ], root);
   }
-  await Promise.all(ordered.map(item => waitForNpmVersion(`${item.name}@${item.version}`, item.version)));
+  await Promise.all(publishTargets.map(item => waitForNpmVersion(`${item.name}@${item.version}`, item.version)));
   await verifyPublicPackage(`${canonicalPackageName}@next`);
   process.exit(0);
 }
 
 if (action === "repair-next-tags") {
   const packagesWithLatest = new Set<string>();
-  for (const item of ordered) {
+  for (const item of publishTargets) {
     const nextVersion = npmView(`${item.name}@next`, "version");
     const latestVersion = npmView(`${item.name}@latest`, "version");
     if (nextVersion !== item.version || (latestVersion !== undefined && latestVersion !== item.version)) {
@@ -90,10 +95,10 @@ if (action === "repair-next-tags") {
     }
     if (latestVersion === item.version) packagesWithLatest.add(item.name);
   }
-  for (const item of ordered) {
+  for (const item of publishTargets) {
     if (packagesWithLatest.has(item.name)) run("npm", ["dist-tag", "rm", item.name, "latest"], root);
   }
-  for (const item of ordered) {
+  for (const item of publishTargets) {
     const nextVersion = npmView(`${item.name}@next`, "version");
     const latestVersion = npmView(`${item.name}@latest`, "version");
     if (nextVersion !== item.version || latestVersion !== undefined) {
@@ -104,19 +109,19 @@ if (action === "repair-next-tags") {
     }
   }
   console.log(
-    `Removed or confirmed absent the unintended latest tag for ${ordered.length} packages; next remains unchanged.`,
+    `Removed or confirmed absent the unintended latest tag for ${publishTargets.length} package; next remains unchanged.`,
   );
   process.exit(0);
 }
 
 await verifyPublicPackage(`${canonicalPackageName}@next`);
-for (const item of ordered) {
+for (const item of publishTargets) {
   const nextVersion = npmView(`${item.name}@next`, "version");
   if (nextVersion !== item.version) {
     throw new Error(`${item.name}@next resolves to ${nextVersion || "nothing"}, expected ${item.version}.`);
   }
 }
-for (const item of ordered) {
+for (const item of publishTargets) {
   run("npm", ["dist-tag", "add", `${item.name}@${item.version}`, "latest"], root);
 }
 await verifyPublicPackage(`${canonicalPackageName}@latest`);

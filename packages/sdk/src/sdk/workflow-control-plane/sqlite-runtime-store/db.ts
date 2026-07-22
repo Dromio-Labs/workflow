@@ -2,10 +2,12 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type {
+  StoredWorkflowRunSnapshot,
   TriggerJobPayload,
   TriggerJobSnapshot,
   TriggerJobStatus,
 } from "../types.js";
+import { workflowAppRunSnapshotRevision } from "../../client/interactions/workflow-app/run-revision.js";
 
 export type TriggerJobRow = {
   attempts: number;
@@ -126,8 +128,15 @@ function initialize(database: Database): void {
     snapshot_json text not null,
     created_at text not null,
     updated_at text not null,
-    completed_at text
+    completed_at text,
+    revision_index integer not null default -1,
+    revision_count integer not null default 0,
+    terminal integer not null default 0
   )`);
+  ensureColumn(database, "workflow_runs", "revision_index", "integer not null default -1");
+  ensureColumn(database, "workflow_runs", "revision_count", "integer not null default 0");
+  ensureColumn(database, "workflow_runs", "terminal", "integer not null default 0");
+  backfillWorkflowRunRevisions(database);
   database.run("create index if not exists workflow_runs_workflow_idx on workflow_runs(workflow_id, updated_at)");
   database.run(`create table if not exists workflow_events (
     run_id text not null,
@@ -219,6 +228,26 @@ function initialize(database: Database): void {
     value text not null,
     updated_at text not null
   )`);
+}
+
+function backfillWorkflowRunRevisions(database: Database): void {
+  const rows = database.query("select id, snapshot_json from workflow_runs").all() as Array<{
+    id: string;
+    snapshot_json: string;
+  }>;
+  if (rows.length === 0) return;
+  const update = database.prepare(
+    "update workflow_runs set revision_index = ?, revision_count = ?, terminal = ? where id = ?",
+  );
+  const transaction = database.transaction(() => {
+    for (const row of rows) {
+      const revision = workflowAppRunSnapshotRevision(
+        JSON.parse(row.snapshot_json) as StoredWorkflowRunSnapshot,
+      );
+      update.run(revision.eventIndex, revision.eventCount, revision.terminal ? 1 : 0, row.id);
+    }
+  });
+  transaction();
 }
 
 function ensureColumn(database: Database, table: string, column: string, definition: string): void {

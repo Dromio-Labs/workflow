@@ -1,6 +1,6 @@
 {
   "name": "@dromio/trigger",
-  "version": "0.1.41",
+  "version": "0.1.43",
   "dromio": {
     "stability": "beta"
   },

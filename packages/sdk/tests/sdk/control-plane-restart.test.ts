@@ -158,6 +158,34 @@ describe("workflow control-plane restart rehydration", () => {
     }
   });
 
+  test("resumes a durable question token after restart through the answer path", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "dromio-control-plane-question-hook-"));
+    const dbPath = path.join(directory, "runtime.sqlite");
+    let token = "";
+
+    try {
+      {
+        const phaseA = createHarness(dbPath);
+        const started = await phaseA.controlPlane.startRun({
+          input: "ship it",
+          runId: "run_restart_question_hook",
+          workflowId: "approval",
+        });
+        token = started.pendingHooks?.[0]?.token ?? "";
+        expect(started.pendingHooks?.[0]?.kind).toBe("question");
+      }
+
+      const phaseB = createHarness(dbPath);
+      const completed = await phaseB.controlPlane.resumeHook({ token, value: "yes" });
+
+      expect(completed.status).toBe("completed");
+      expect(completed.result).toBe(JSON.stringify({ approved: "yes", prepared: true }));
+      expect(eventCount(completed.events, "step.completed", "prepare")).toBe(1);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("reconciles a stale hydrated run after another process advances it", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "dromio-control-plane-reconcile-"));
     const dbPath = path.join(directory, "runtime.sqlite");
@@ -190,6 +218,44 @@ describe("workflow control-plane restart rehydration", () => {
       expect(completed.result).toContain('"approved":"yes"');
       expect(completed.result).toContain('"released":"now"');
     } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
+  test("rejects a stale waiting write after another controller completes the run", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "dromio-control-plane-monotonic-"));
+    const dbPath = path.join(directory, "runtime.sqlite");
+    let releaseStaleWrite: (() => void) | undefined;
+
+    try {
+      const starter = createHarness(dbPath);
+      const waiting = await starter.controlPlane.startRun({
+        input: "ship it",
+        runId: "run_restart_monotonic",
+        workflowId: "approval",
+      });
+      const deferred = deferFirstRunWrite(createSqliteWorkflowRuntimeStore(dbPath));
+      releaseStaleWrite = deferred.release;
+      const staleController = createHarness(dbPath, createWorkflowAppRuntime, deferred.store);
+      await staleController.controlPlane.getRun(waiting.runId);
+
+      const staleResume = staleController.controlPlane.resumeRun(waiting.runId);
+      await withTimeout(deferred.entered, "Stale controller did not reach persistence.");
+      const winner = createHarness(dbPath);
+      const completed = await winner.controlPlane.answerQuestion(waiting.runId, {
+        questionId: "approval",
+        value: "yes",
+      });
+      deferred.release();
+      const reconciled = await staleResume;
+      const stored = await winner.store.getWorkflowRun(waiting.runId);
+
+      expect(completed.status).toBe("completed");
+      expect(reconciled.status).toBe("completed");
+      expect(stored?.status).toBe("completed");
+      expect(eventCount(stored?.events ?? [], "step.completed", "finish")).toBe(1);
+    } finally {
+      releaseStaleWrite?.();
       await rm(directory, { force: true, recursive: true });
     }
   });
@@ -252,10 +318,11 @@ describe("workflow control-plane restart rehydration", () => {
 function createHarness(
   dbPath: string,
   runtimeFactory: (app: WorkflowApp) => WorkflowAppRuntime = createWorkflowAppRuntime,
+  runtimeStore?: WorkflowRuntimeStore,
 ) {
   const app = createRestartApp();
   const runtime = runtimeFactory(app);
-  const store = createSqliteWorkflowRuntimeStore(dbPath);
+  const store = runtimeStore ?? createSqliteWorkflowRuntimeStore(dbPath);
   const controlPlane = createWorkflowControlPlane({
     app,
     runtime,
@@ -267,6 +334,47 @@ function createHarness(
     http: createWorkflowControlPlaneHttpAdapter({ controlPlane }),
     store,
   };
+}
+
+function deferFirstRunWrite(store: WorkflowRuntimeStore): {
+  readonly entered: Promise<void>;
+  readonly release: () => void;
+  readonly store: WorkflowRuntimeStore;
+} {
+  let enter!: () => void;
+  let release!: () => void;
+  let delayed = true;
+  const entered = new Promise<void>((resolve) => { enter = resolve; });
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  return {
+    entered,
+    release,
+    store: {
+      ...store,
+      async putWorkflowRun(snapshot) {
+        if (delayed) {
+          delayed = false;
+          enter();
+          await gate;
+        }
+        return await store.putWorkflowRun(snapshot);
+      },
+    },
+  };
+}
+
+async function withTimeout<Value>(promise: Promise<Value>, message: string): Promise<Value> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), 1_000);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 function createRestartApp(): WorkflowApp {

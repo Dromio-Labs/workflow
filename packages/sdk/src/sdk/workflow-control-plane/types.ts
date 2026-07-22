@@ -241,6 +241,13 @@ export type WorkflowRunFilter = {
 
 export type StoredWorkflowRunSnapshot = WorkflowAppRunSnapshot;
 
+export type PutWorkflowRunResult = {
+  /** True when the submitted snapshot is current (newly stored or already identical). */
+  accepted: boolean;
+  /** The authoritative snapshot after the atomic write attempt. */
+  snapshot: StoredWorkflowRunSnapshot;
+};
+
 export type PutArtifactContentInput = {
   artifactId: string;
   content: string;
@@ -451,7 +458,8 @@ export type WorkflowRuntimeStore = {
     runId: string;
   }): Promise<TriggerJobSnapshot> | TriggerJobSnapshot;
   putArtifactContent?(input: PutArtifactContentInput): Promise<void> | void;
-  putWorkflowRun(snapshot: StoredWorkflowRunSnapshot): Promise<void> | void;
+  /** Atomically preserves the newest run revision and rejects stale regressions. */
+  putWorkflowRun(snapshot: StoredWorkflowRunSnapshot): Promise<PutWorkflowRunResult> | PutWorkflowRunResult;
   putSignalOccurrence(input: PutSignalOccurrenceInput): Promise<PutSignalOccurrenceResult> | PutSignalOccurrenceResult;
   pruneRuntime(input: PruneRuntimeInput): Promise<RuntimeRetentionResult> | RuntimeRetentionResult;
   queryDatasetRows?(definition: DatasetStoreDefinition, query?: DatasetRowsQuery): Promise<DatasetRow[]> | DatasetRow[];

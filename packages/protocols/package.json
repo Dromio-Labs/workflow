@@ -1,6 +1,6 @@
 {
   "name": "@dromio/protocols",
-  "version": "0.1.42",
+  "version": "0.2.0",
   "dromio": {
     "stability": "beta"
   },
