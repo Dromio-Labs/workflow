@@ -56,7 +56,7 @@ export function upsertDatasetRows(
     }
     return { inserted, updated };
   });
-  return transaction(input.rows);
+  return transaction.immediate(input.rows);
 }
 
 export function queryDatasetRows(

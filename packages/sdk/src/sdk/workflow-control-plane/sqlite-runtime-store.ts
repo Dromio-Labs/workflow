@@ -85,7 +85,10 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
           updated_at: input.now,
         });
       });
-      return transaction();
+      // Reserve the WAL writer before the selection read establishes a snapshot.
+      // A deferred read-then-write transaction can otherwise fail its upgrade
+      // with SQLITE_BUSY_SNAPSHOT when another process commits in between.
+      return transaction.immediate();
     },
     completeTriggerJob(input) {
       const current = requireTriggerJob(database, input.jobId);

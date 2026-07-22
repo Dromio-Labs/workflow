@@ -91,7 +91,7 @@ export function claimNextSignalDelivery(
   database: Database,
   input: { leaseMs: number; now: string; workerId: string },
 ): SignalDeliveryClaim | undefined {
-  return database.transaction(() => {
+  const transaction = database.transaction(() => {
     releaseExpiredClaims(database, input.now);
     const pair = database.query(
       `select occurrence.id as occurrence_id, wait.token as wait_token
@@ -118,7 +118,8 @@ export function claimNextSignalDelivery(
       occurrence: requireOccurrence(database, pair.occurrence_id),
       wait: requireWait(database, pair.wait_token),
     };
-  })();
+  });
+  return transaction.immediate();
 }
 
 export function completeSignalDelivery(
