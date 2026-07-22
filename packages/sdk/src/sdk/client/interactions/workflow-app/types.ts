@@ -169,6 +169,7 @@ export type WorkflowAppWorkflowDescriptor = {
   commands?: WorkflowAppCommandDescriptor[];
   configuration?: WorkflowAppConfigurationDescriptor;
   description?: string;
+  graph?: LoopGraphProjection;
   id: string;
   input?: WorkflowAppInputDescriptor;
   title: string;

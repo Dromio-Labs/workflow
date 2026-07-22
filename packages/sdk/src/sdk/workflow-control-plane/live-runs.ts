@@ -90,9 +90,19 @@ export function createLiveRunController(input: {
     run: WorkflowAppRun,
     answerInput: { questionId: string; value: unknown },
   ): Promise<WorkflowAppRunSnapshot> {
+    const questionHook = run.session.pendingHooks?.find((hook) =>
+      hook.kind === "question" && hook.id === answerInput.questionId
+    );
     const answered = await input.runtime.answerQuestion(run.runId, answerInput);
     const answerPersistence = await persistRunResult(answered);
     if (!answerPersistence.written) return answerPersistence.snapshot;
+    if (
+      questionHook &&
+      !(answered.session as WorkflowAppSession & Partial<DurableHookAnswerSession>)
+        .consumedHookTokens?.has(questionHook.token)
+    ) {
+      return answerPersistence.snapshot;
+    }
     const resumed = await input.runtime.resumeRun(answered.runId);
     return persistRun(resumed);
   }

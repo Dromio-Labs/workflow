@@ -17,6 +17,37 @@ import type {
 import { z } from "zod";
 
 describe("workflow control-plane MCP provider", () => {
+  test("advertises a stable MCP App resource while preserving structured fallback data", async () => {
+    const provider = createWorkflowControlPlaneMcpProvider({
+      controlPlane: mockControlPlane(),
+      toolPrefix: "dromio",
+    });
+    const resource = (await provider.listResources()).resources[0];
+    const html = (await provider.readResource(resource!.uri)).contents[0];
+    const getRun = (await provider.listTools()).tools.find((item) => item.name === "dromio.get_run");
+
+    expect(resource).toMatchObject({
+      mimeType: "text/html;profile=mcp-app",
+      uri: "ui://dromio/workflow-run",
+    });
+    expect(getRun?._meta).toEqual({ ui: { resourceUri: "ui://dromio/workflow-run" } });
+    expect(html && "text" in html ? html.text : "").toContain('method==="ui/notifications/tool-result"');
+    expect(html && "text" in html ? html.text : "").toContain('call("resume_hook"');
+    expect(html && "text" in html ? html.text : "").toContain('call("answer_question"');
+    expect(html && "text" in html ? html.text : "").toContain('call("get_run"');
+    expect(html && "text" in html ? html.text : "").toContain('id="approve"');
+    expect(html && "text" in html ? html.text : "").toContain('id="reject"');
+    expect(html && "text" in html ? html.text : "").toContain('aria-label="Workflow graph"');
+    expect(html && "text" in html ? html.text : "").toContain('id="question-actions"');
+    expect(html && "text" in html ? html.text : "").toContain("prefers-reduced-motion:reduce");
+    expect(html && "text" in html ? html.text : "").toContain("handoff_requested");
+    expect(html && "text" in html ? html.text : "").toContain("failed");
+
+    const fallback = await provider.callTool("dromio.get_run", { runId: "run-mcp" });
+    expect(fallback.content[0]).toMatchObject({ type: "text" });
+    expect(fallback.structuredContent).toMatchObject({ run: { runId: "run-mcp" } });
+  });
+
   test("lists workflow tools without exposing protocol discovery as a user tool", async () => {
     const controlPlane = mockControlPlane();
     const provider = createWorkflowControlPlaneMcpProvider({ controlPlane, toolPrefix: "dromio" });
@@ -265,6 +296,36 @@ describe("workflow control-plane MCP provider", () => {
     expect(body.result?.structuredContent?.run?.status).toBe("completed");
   });
 
+  test("serves the MCP App resource through Streamable HTTP", async () => {
+    const provider = createWorkflowControlPlaneMcpProvider({
+      controlPlane: mockControlPlane(),
+      toolPrefix: "dromio",
+    });
+    const response = await provider.fetch(new Request("http://local/mcp", {
+      body: JSON.stringify({
+        id: 2,
+        jsonrpc: "2.0",
+        method: "resources/read",
+        params: { uri: "ui://dromio/workflow-run" },
+      }),
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        "mcp-protocol-version": "2025-06-18",
+      },
+      method: "POST",
+    }));
+    const body = await response.json() as {
+      result?: { contents?: Array<{ mimeType?: string; text?: string }> };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.result?.contents?.[0]).toMatchObject({
+      mimeType: "text/html;profile=mcp-app",
+    });
+    expect(body.result?.contents?.[0]?.text).toContain("Dromio workflow run");
+  });
+
   test("allows app-owned extra tools beside workflow tools", async () => {
     const controlPlane = mockControlPlane();
     const provider = createWorkflowControlPlaneMcpProvider({
@@ -345,6 +406,9 @@ function mockControlPlane(input: {
     },
     async getTriggerJob(id: string) {
       return triggerJob("process-images.request", {}, id);
+    },
+    async getWorkflow(id: string) {
+      return { description: "Plan things.", id, title: "Planner" };
     },
     async listRuns() {
       return [];

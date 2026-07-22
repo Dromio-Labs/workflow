@@ -35,6 +35,7 @@ export function createWorkflowApp(input: WorkflowAppConfig | WorkflowAppEntry["w
       ...(entryCommands.length ? { commands: entryCommands } : {}),
       configuration: entry.configuration,
       description: entry.description,
+      graph: entry.workflow.graph(),
       id,
       input: entry.input ?? triggers[0]?.input,
       title: entry.title ?? titleFromId(id),
