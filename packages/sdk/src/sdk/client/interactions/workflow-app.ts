@@ -80,6 +80,7 @@ export type {
   WorkflowAppQuestion,
   WorkflowAppResolvedStartInput,
   WorkflowAppResumeHookInput,
+  WorkflowAppHookResumeSource,
   WorkflowAppRerunFromStepInput,
   WorkflowAppRun,
   WorkflowAppRunOrigin,

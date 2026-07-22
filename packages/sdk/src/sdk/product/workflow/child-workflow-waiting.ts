@@ -14,8 +14,14 @@ type ChildWorkflowDurableEntry = {
 };
 
 /** Deterministic parent-side token for a mirrored child hook. */
-export function mirrorChildHookToken(namespace: string, childToken: string) {
-  return `hook:child:${namespace}:${childToken}`;
+export function mirrorChildHookToken(
+  namespace: string,
+  childToken: string,
+  parentRunId?: string,
+) {
+  return parentRunId
+    ? `hook:${parentRunId}:child:${namespace}:${childToken}`
+    : `hook:child:${namespace}:${childToken}`;
 }
 
 export function namespacedChildQuestionId(namespace: string, questionId: string) {
@@ -53,7 +59,7 @@ export function mirrorChildHookRequest(
     ...(request.schema ? { schema: request.schema } : {}),
     stepId: step.id,
     ...(request.title ? { title: request.title } : {}),
-    token: mirrorChildHookToken(namespace, request.token),
+    token: mirrorChildHookToken(namespace, request.token, step.runId),
   };
 }
 

@@ -20,6 +20,7 @@ import type {
   QuestionResolutionHistoryItem,
 } from "../questions/index.js";
 import { resumeSession } from "./session/resume.js";
+import { assertHookOutput } from "./hook-validation.js";
 import {
   persistenceEffect,
   runLoopEffect,
@@ -184,6 +185,7 @@ export class LoopSession<TUse = unknown, TInput = unknown> {
         if (!hookRequest) {
           throw new Error(`Unknown hook token: ${input.token}`);
         }
+        assertHookOutput(hookRequest, input.value);
         if (hookRequest.kind === "question") {
           await this.answer({
             questionId: hookRequest.id,

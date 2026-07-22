@@ -18,6 +18,7 @@ describe("workflow control-plane MCP provider", () => {
 
     expect(tools).toContain("dromio.list_workflows");
     expect(tools).toContain("dromio.fire_trigger");
+    expect(tools).toContain("dromio.resume_hook");
     expect(tools).toContain("dromio.trigger.process-images.request");
     expect(tools).not.toContain("tools/list");
   });
@@ -79,6 +80,69 @@ describe("workflow control-plane MCP provider", () => {
     });
   });
 
+  test("resumes hooks through the canonical control-plane operation", async () => {
+    const resumed: Array<Record<string, unknown>> = [];
+    const controlPlane = mockControlPlane({ resumed });
+    const provider = createWorkflowControlPlaneMcpProvider({
+      controlPlane,
+      toolPrefix: "dromio",
+    });
+
+    const result = await provider.callTool("dromio.resume_hook", {
+      source: { adapter: "codex", participant: "agent-7" },
+      token: "hook:run-mcp:delegate:1:0:research",
+      value: { report: "complete" },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(resumed).toEqual([{
+      source: { adapter: "codex", participant: "agent-7" },
+      token: "hook:run-mcp:delegate:1:0:research",
+      value: { report: "complete" },
+    }]);
+    expect(result.structuredContent).toMatchObject({
+      run: { runId: "run-mcp", status: "completed" },
+    });
+  });
+
+  test("resumes hooks through Streamable HTTP JSON-RPC", async () => {
+    const resumed: Array<Record<string, unknown>> = [];
+    const provider = createWorkflowControlPlaneMcpProvider({
+      controlPlane: mockControlPlane({ resumed }),
+      toolPrefix: "dromio",
+    });
+    const response = await provider.fetch(new Request("http://local/mcp", {
+      body: JSON.stringify({
+        id: 1,
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+          arguments: {
+            token: "hook:run-http-mcp:delegate:1:0:research",
+            value: { report: "complete over HTTP" },
+          },
+          name: "dromio.resume_hook",
+        },
+      }),
+      headers: {
+        accept: "application/json, text/event-stream",
+        "content-type": "application/json",
+        "mcp-protocol-version": "2025-06-18",
+      },
+      method: "POST",
+    }));
+    const body = await response.json() as {
+      result?: { structuredContent?: { run?: { status?: string } } };
+    };
+
+    expect(response.status).toBe(200);
+    expect(resumed).toEqual([{
+      token: "hook:run-http-mcp:delegate:1:0:research",
+      value: { report: "complete over HTTP" },
+    }]);
+    expect(body.result?.structuredContent?.run?.status).toBe("completed");
+  });
+
   test("allows app-owned extra tools beside workflow tools", async () => {
     const controlPlane = mockControlPlane();
     const provider = createWorkflowControlPlaneMcpProvider({
@@ -101,7 +165,10 @@ describe("workflow control-plane MCP provider", () => {
   });
 });
 
-function mockControlPlane(input: { enqueued?: EnqueueTriggerInput[] } = {}): WorkflowControlPlane {
+function mockControlPlane(input: {
+  enqueued?: EnqueueTriggerInput[];
+  resumed?: Array<Record<string, unknown>>;
+} = {}): WorkflowControlPlane {
   const triggers: TriggerDescriptor[] = [{
     enabled: true,
     id: "process-images.request",
@@ -156,6 +223,21 @@ function mockControlPlane(input: { enqueued?: EnqueueTriggerInput[] } = {}): Wor
     },
     async listWorkflows() {
       return [{ description: "Plan things.", id: "planner", title: "Planner" }];
+    },
+    async resumeHook(resumeInput: {
+      source?: { adapter?: string; participant?: string };
+      token: string;
+      value: unknown;
+    }) {
+      input.resumed?.push(resumeInput);
+      return {
+        events: [],
+        input: {},
+        origin: { type: "mcp" },
+        runId: resumeInput.token.split(":")[1] ?? "run-mcp",
+        status: "completed",
+        workflowId: "planner",
+      };
     },
   } as unknown as WorkflowControlPlane;
 }

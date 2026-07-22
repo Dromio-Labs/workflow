@@ -232,6 +232,7 @@ export type {
   RunnableWorkflowAppWorkflow,
   WorkflowAppQuestion,
   WorkflowAppResumeHookInput,
+  WorkflowAppHookResumeSource,
   RunWorkflowAppCliOptions,
   RunWorkflowAppCliResultOptions,
   WorkflowTaskReporterOptions,
