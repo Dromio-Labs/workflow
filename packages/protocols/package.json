@@ -1,6 +1,6 @@
 {
   "name": "@dromio/protocols",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "dromio": {
     "stability": "beta"
   },
@@ -24,7 +24,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json && bun build src/index.ts --target=node --format=cjs --outfile dist/index.cjs",
+    "build": "node scripts/clean-dist.mjs && node ../../node_modules/typescript/bin/tsc -p tsconfig.json && bun build src/index.ts --target=node --format=cjs --outfile dist/index.cjs",
     "prepack": "bun run build",
     "validate": "bun scripts/validate-schemas.mjs",
     "test": "bun test",

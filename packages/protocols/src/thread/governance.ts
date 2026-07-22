@@ -215,13 +215,8 @@ export interface DromioThreadAuthorityReceiptV1 {
   readonly schemaVersion: "dromio.thread-authority-receipt.v1";
   readonly id: string;
   readonly threadId: string;
-  readonly source: "legacy_runtime" | "thread_service";
+  readonly source: "thread_service";
   readonly authority: "thread_service";
-  readonly importedCounts: Readonly<Record<string, number>>;
-  readonly sourceDigest: string;
-  readonly migrationReportId?: string;
-  readonly projectionDigest?: string;
-  readonly verifiedAt: string;
   readonly activatedAt: string;
 }
 
@@ -246,6 +241,3 @@ export interface DromioRestorePurgeReceiptV1 {
   readonly propagationTargets: readonly string[];
   readonly enforcedAt: string;
 }
-
-export interface DromioLegacyMigrationReferenceV1 { readonly kind: "message" | "turn" | "artifact" | "feedback" | "parent_thread"; readonly sourceId: string; readonly targetId?: string; readonly status: "resolved" | "missing"; }
-export interface DromioLegacyMigrationReportV1 { readonly schemaVersion: "dromio.legacy-migration-report.v1"; readonly id: string; readonly stageId: string; readonly tenantId: string; readonly applicationId: string; readonly threadId: string; readonly status: "staged" | "verified" | "activated" | "rolled_back"; readonly sourceDigest: string; readonly projectionDigest: string; readonly importedCounts: Readonly<Record<string, number>>; readonly unsupportedFields: readonly string[]; readonly droppedSensitiveFields: readonly string[]; readonly references: readonly DromioLegacyMigrationReferenceV1[]; readonly createdAt: string; readonly verifiedAt?: string; readonly activatedAt?: string; readonly rolledBackAt?: string; }

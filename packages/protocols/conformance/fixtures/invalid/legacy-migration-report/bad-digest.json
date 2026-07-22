@@ -1,1 +1,0 @@
-{"schemaVersion":"dromio.legacy-migration-report.v1","id":"report-1","stageId":"stage-1","tenantId":"tenant-1","applicationId":"app-1","threadId":"thread-1","status":"staged","sourceDigest":"not-a-digest","projectionDigest":"not-a-digest","importedCounts":{},"unsupportedFields":[],"droppedSensitiveFields":[],"references":[],"createdAt":"2026-01-01T00:00:00Z"}

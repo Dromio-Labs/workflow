@@ -1,11 +1,35 @@
 import { describe, expect, test } from "bun:test";
 import {
   canonicalPackageName,
+  packageDirectories,
   selectCanonicalPublishTarget,
 } from "./package-closure.js";
 import { assertPackedPackageRuntimePayload } from "./package-payload.js";
 
 describe("Workflow release ownership", () => {
+  test("pins the canonical 0.2.2 package to the Kernel foundation closure", async () => {
+    const versions = Object.fromEntries(await Promise.all(
+      packageDirectories.map(async (directory) => {
+        const manifest = await Bun.file(
+          new URL(`../${directory}/package.json`, import.meta.url),
+        ).json() as { name: string; version: string };
+        return [manifest.name, manifest.version] as const;
+      }),
+    ));
+
+    expect(versions).toEqual({
+      "@dromio/chat-shell-ui": "0.1.10",
+      "@dromio/execution": "0.1.43",
+      "@dromio/protocols": "0.2.1",
+      "@dromio/thread-service": "0.2.1",
+      "@dromio/trigger": "0.1.44",
+      "@dromio/workflow": "0.2.2",
+      "@dromio/workflow-canvas-protocol": "0.1.3",
+      "@dromio/workflow-kernel": "0.1.8",
+      "@dromio/workflow-room-protocol": "0.1.44",
+    });
+  });
+
   test("keeps MCP and terminal UI integrations optional in headless installs", async () => {
     const manifest = await Bun.file(new URL("../packages/sdk/package.json", import.meta.url)).json() as {
       dependencies?: Record<string, string>;
@@ -27,13 +51,13 @@ describe("Workflow release ownership", () => {
 
   test("publishes only the canonical Workflow package from the build closure", () => {
     const closure = [
-      { name: "@dromio/protocols", version: "0.2.0" },
-      { name: canonicalPackageName, version: "0.2.0" },
-      { name: "@dromio/thread-service", version: "0.2.0" },
+      { name: "@dromio/protocols", version: "0.2.1" },
+      { name: canonicalPackageName, version: "0.2.2" },
+      { name: "@dromio/thread-service", version: "0.2.1" },
     ];
 
     expect(selectCanonicalPublishTarget(closure)).toEqual([
-      { name: canonicalPackageName, version: "0.2.0" },
+      { name: canonicalPackageName, version: "0.2.2" },
     ]);
   });
 
