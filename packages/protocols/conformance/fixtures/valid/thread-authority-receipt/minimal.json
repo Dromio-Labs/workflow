@@ -1,1 +1,1 @@
-{"schemaVersion":"dromio.thread-authority-receipt.v1","id":"authority-1","threadId":"thread-1","source":"legacy_runtime","authority":"thread_service","importedCounts":{"events":3},"sourceDigest":"sha256:x","verifiedAt":"2026-01-01T00:00:00Z","activatedAt":"2026-01-01T00:00:00Z"}
+{"schemaVersion":"dromio.thread-authority-receipt.v1","id":"authority-1","threadId":"thread-1","source":"thread_service","authority":"thread_service","activatedAt":"2026-01-01T00:00:00Z"}

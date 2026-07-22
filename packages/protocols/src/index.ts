@@ -45,7 +45,6 @@ export const dromioProtocolSchemaNames = [
   ,"backup-purge-ledger-entry"
   ,"restore-purge-receipt"
   ,"resource-provenance"
-  ,"legacy-migration-report"
   ,"browser-operation"
   ,"browser-result"
   ,"browser-error"
@@ -103,7 +102,6 @@ export const dromioProtocolSchemaIds = {
   "backup-purge-ledger-entry": "https://schemas.dromio.dev/backup-purge-ledger-entry/v1.schema.json",
   "restore-purge-receipt": "https://schemas.dromio.dev/restore-purge-receipt/v1.schema.json",
   "resource-provenance": "https://schemas.dromio.dev/resource-provenance/v1.schema.json",
-  "legacy-migration-report": "https://schemas.dromio.dev/legacy-migration-report/v1.schema.json",
   "browser-operation": "https://schemas.dromio.dev/browser-operation/v1.schema.json",
   "browser-result": "https://schemas.dromio.dev/browser-result/v1.schema.json",
   "browser-error": "https://schemas.dromio.dev/browser-error/v1.schema.json",
@@ -263,7 +261,6 @@ export * from "./thread/execution.js";
 export * from "./thread/governance.js";
 export * from "./thread/events.js";
 export * from "./thread/capabilities.js";
-export * from "./thread/legacy-inline-media.js";
 export * from "./browser.js";
 export * from "./browser-operations.js";
 export * from "./browser-operation-schemas.js";

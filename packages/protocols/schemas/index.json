@@ -241,7 +241,7 @@
       "name": "purge-receipt", "version": "v1", "path": "purge-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/purge-receipt/v1.schema.json", "description": "Verifiable record of physical deletion and propagation."
     },
     {
-      "name": "thread-authority-receipt", "version": "v1", "path": "thread-authority-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/thread-authority-receipt/v1.schema.json", "description": "Single-writer authority activation after migration."
+      "name": "thread-authority-receipt", "version": "v1", "path": "thread-authority-receipt/v1.schema.json", "id": "https://schemas.dromio.dev/thread-authority-receipt/v1.schema.json", "description": "Single-writer Thread Service authority activation."
     },
     {
       "name": "message-revision", "version": "v1", "path": "message-revision/v1.schema.json", "id": "https://schemas.dromio.dev/message-revision/v1.schema.json", "description": "Immutable prior version of a thread message."
@@ -266,9 +266,6 @@
     },
     {
       "name": "resource-provenance", "version": "v1", "path": "resource-provenance/v1.schema.json", "id": "https://schemas.dromio.dev/resource-provenance/v1.schema.json", "description": "Normalized lineage linking resources to requests, commands, events, turns, runs, and attempts."
-    },
-    {
-      "name": "legacy-migration-report", "version": "v1", "path": "legacy-migration-report/v1.schema.json", "id": "https://schemas.dromio.dev/legacy-migration-report/v1.schema.json", "description": "Stage, verification, reference, sensitive-field, and authority evidence for a legacy import."
     },
     {
       "name": "browser-operation", "version": "v1", "path": "browser-operation/v1.schema.json", "id": "https://schemas.dromio.dev/browser-operation/v1.schema.json", "description": "Scoped vendor-neutral browser operation envelope."
