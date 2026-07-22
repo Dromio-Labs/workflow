@@ -1,6 +1,6 @@
 {
   "name": "@dromio/workflow",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": false,
   "dromio": {
     "stability": "beta"
@@ -30,6 +30,10 @@
     "./workflow-control-plane/http": {
       "types": "./dist/src/sdk/workflow-control-plane/http.d.ts",
       "import": "./dist/src/sdk/workflow-control-plane/http.js"
+    },
+    "./workflow-control-plane/mcp": {
+      "types": "./dist/src/sdk/workflow-control-plane/mcp.d.ts",
+      "import": "./dist/src/sdk/workflow-control-plane/mcp.js"
     },
     "./workflow-control-plane/in-memory-signal-store": {
       "types": "./dist/src/sdk/workflow-control-plane/in-memory-signal-store.d.ts",
@@ -153,9 +157,6 @@
     "@json-render/core": "^0.19.0",
     "@json-render/react": "^0.19.0",
     "@kitlangton/merman": "0.1.1",
-    "@modelcontextprotocol/sdk": "^1.18.0",
-    "@opentui/core": "0.2.6",
-    "@opentui/solid": "0.2.6",
     "ajv": "8.18.0",
     "effect": "3.21.2",
     "react-resizable-panels": "^4.12.1",
@@ -164,10 +165,27 @@
     "zod": "^4.1.12"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@opentui/core": "0.2.6",
+    "@opentui/solid": "0.2.6",
     "react": "^18.3.0 || ^19.0.0",
     "react-dom": "^18.3.0 || ^19.0.0"
   },
+  "peerDependenciesMeta": {
+    "@modelcontextprotocol/sdk": {
+      "optional": true
+    },
+    "@opentui/core": {
+      "optional": true
+    },
+    "@opentui/solid": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@opentui/core": "0.2.6",
+    "@opentui/solid": "0.2.6",
     "@types/babel__core": "7.20.5",
     "@types/bun": "latest",
     "@types/node": "latest",

@@ -34,10 +34,6 @@ export {
   createWorkflowControlPlaneHttpAdapter,
 } from "./http.js";
 export {
-  createWorkflowControlPlaneMcpProvider,
-  createWorkflowControlPlaneMcpServer,
-} from "./mcp.js";
-export {
   createDromioPlatformControlPlaneClient,
   createRemoteWorkflowControlPlaneClient,
 } from "./remote-client.js";
@@ -134,11 +130,6 @@ export type {
   CreateWorkflowControlPlaneHttpAdapterInput,
   WorkflowControlPlaneHttpAdapter,
 } from "./http.js";
-export type {
-  CreateWorkflowControlPlaneMcpProviderInput,
-  WorkflowControlPlaneMcpProvider,
-  WorkflowControlPlaneMcpTool,
-} from "./mcp.js";
 export type {
   CreateRemoteWorkflowControlPlaneClientInput,
 } from "./remote-client.js";

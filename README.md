@@ -39,6 +39,12 @@ Basic steps and workflows do not require global configuration. Features that
 reach models, storage, control planes, or user interfaces receive their adapters
 at the application boundary, keeping workflow logic portable.
 
+The terminal UI and MCP server are optional integrations, so a headless
+installation does not inherit their build-time or server-adapter dependency
+trees. Install `@opentui/core` plus `@opentui/solid` when using the TUI. Install
+`@modelcontextprotocol/sdk` and import
+`@dromio/workflow/workflow-control-plane/mcp` when hosting the MCP adapter.
+
 ## Durable run writes
 
 Control-plane stores persist each run with a monotonic revision. Callers that

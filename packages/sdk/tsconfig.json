@@ -54,6 +54,9 @@
       "@dromio/workflow/workflow-control-plane/http": [
         "src/sdk/workflow-control-plane/http.ts"
       ],
+      "@dromio/workflow/workflow-control-plane/mcp": [
+        "src/sdk/workflow-control-plane/mcp.ts"
+      ],
       "@dromio/workflow/workflow-control-plane/json-trigger-store": [
         "src/sdk/workflow-control-plane/json-trigger-store.ts"
       ],

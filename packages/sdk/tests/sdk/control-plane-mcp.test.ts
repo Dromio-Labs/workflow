@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   createWorkflowControlPlaneMcpProvider,
-  type EnqueueTriggerInput,
-  type TriggerDescriptor,
-  type TriggerJobSnapshot,
-  type WorkflowControlPlane,
+} from "@dromio/workflow/workflow-control-plane/mcp";
+import type {
+  EnqueueTriggerInput,
+  TriggerDescriptor,
+  TriggerJobSnapshot,
+  WorkflowControlPlane,
 } from "@dromio/workflow/workflow-control-plane";
 
 describe("workflow control-plane MCP provider", () => {
