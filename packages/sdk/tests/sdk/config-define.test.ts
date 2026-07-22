@@ -7,6 +7,7 @@ import {
   defineWorkflow,
   modelRegistry,
   provider,
+  type DromioBrowserCapabilitySpec,
 } from "../../src/sdk/config/index.js";
 
 describe("config-as-code definitions", () => {
@@ -22,6 +23,51 @@ describe("config-as-code definitions", () => {
       operations: { "browser.files.download": "approval-required" },
     });
     expect(browser({ driver: "brave-vnc", plugins: [control] }).plugins).toEqual([control]);
+  });
+
+  it("preserves exactly the caller-owned browser resource settings", () => {
+    const configured = browser({
+      driver: "brave-vnc",
+      resources: {
+        databasePath: ".dromio/browser/resources.sqlite",
+        profileNamespace: "browser-agent",
+      },
+    });
+
+    expect(configured.resources).toEqual({
+      databasePath: ".dromio/browser/resources.sqlite",
+      profileNamespace: "browser-agent",
+    });
+    expect(Object.keys(configured.resources ?? {}).sort()).toEqual([
+      "databasePath",
+      "profileNamespace",
+    ]);
+  });
+
+  it("rejects runtime-owned identity in browser resource authoring", () => {
+    const legacyResources = {
+      applicationId: "browser-agent",
+      databasePath: ".dromio/browser/resources.sqlite",
+      profileNamespace: "browser-agent",
+      profileResourceId: "browser-agent-default-profile",
+      tenantId: "local",
+      userId: "owner",
+    } as unknown as NonNullable<DromioBrowserCapabilitySpec["resources"]>;
+
+    expect(() => browser({ driver: "brave-vnc", resources: legacyResources })).toThrow(
+      "unsupported fields: applicationId, profileResourceId, tenantId, userId",
+    );
+  });
+
+  it("rejects empty browser resource settings at the runtime boundary", () => {
+    const resources = {
+      databasePath: ".dromio/browser/resources.sqlite",
+      profileNamespace: " ",
+    } as NonNullable<DromioBrowserCapabilitySpec["resources"]>;
+
+    expect(() => browser({ driver: "brave-vnc", resources })).toThrow(
+      "Browser resources require a non-empty profileNamespace",
+    );
   });
 
   it("rejects duplicate browser-control policy sources", () => {
