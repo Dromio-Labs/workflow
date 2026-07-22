@@ -78,7 +78,7 @@ if (action === "publish-next") {
     ], root);
   }
   await Promise.all(publishTargets.map(item => waitForNpmVersion(`${item.name}@${item.version}`, item.version)));
-  await verifyPublicPackage(`${canonicalPackageName}@next`);
+  await verifyPublicPackage(`${canonicalPackageName}@next`, publishTargets[0]!.version);
   process.exit(0);
 }
 
@@ -114,7 +114,7 @@ if (action === "repair-next-tags") {
   process.exit(0);
 }
 
-await verifyPublicPackage(`${canonicalPackageName}@next`);
+await verifyPublicPackage(`${canonicalPackageName}@next`, publishTargets[0]!.version);
 for (const item of publishTargets) {
   const nextVersion = npmView(`${item.name}@next`, "version");
   if (nextVersion !== item.version) {
@@ -124,7 +124,7 @@ for (const item of publishTargets) {
 for (const item of publishTargets) {
   run("npm", ["dist-tag", "add", `${item.name}@${item.version}`, "latest"], root);
 }
-await verifyPublicPackage(`${canonicalPackageName}@latest`);
+await verifyPublicPackage(`${canonicalPackageName}@latest`, publishTargets[0]!.version);
 
 function validateRelease(items: Manifest[]): Manifest[] {
   if (items.length !== packageDirectories.length) {
@@ -185,9 +185,9 @@ function npmView(specifier: string, field: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-async function verifyPublicPackage(specifier: string): Promise<void> {
-  const expectedVersion = await waitForNpmVersion(specifier);
-  const dependencySpecifier = dependencyValueFor(specifier);
+async function verifyPublicPackage(specifier: string, expected?: string): Promise<void> {
+  const expectedVersion = await waitForNpmVersion(specifier, expected);
+  const dependencySpecifier = expected ?? dependencyValueFor(specifier);
   const temporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-"));
   const headlessTemporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-headless-"));
   try {
