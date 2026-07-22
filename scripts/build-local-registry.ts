@@ -5,7 +5,11 @@ import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { packageDirectories } from "./package-closure.js";
-import { assertPackedPackageRuntimePayload } from "./package-payload.js";
+import {
+  assertPackedPackageDependencyClosure,
+  assertPackedPackageRuntimePayload,
+  type PackedPackageSource,
+} from "./package-payload.js";
 
 const root = path.resolve(import.meta.dir, "..");
 const outDir = path.join(root, ".tmp", "package-release", "artifacts");
@@ -60,6 +64,21 @@ for (const tarballFile of (await readdir(packageDir))
     .map((entry) => entry.trim())
     .filter(Boolean);
   assertPackedPackageRuntimePayload(packageJson, packedPaths);
+  const inspectionDir = path.join(
+    outDir,
+    "inspection",
+    tarballFile.replace(/\.tgz$/, ""),
+  );
+  await mkdir(inspectionDir, { recursive: true });
+  try {
+    run("tar", ["-xzf", tarballPath, "-C", inspectionDir], root);
+    assertPackedPackageDependencyClosure(
+      packageJson,
+      await readPackedModuleSources(inspectionDir, packedPaths),
+    );
+  } finally {
+    await rm(inspectionDir, { force: true, recursive: true });
+  }
   registry.push({
     integrity: `sha512-${createHash("sha512").update(bytes).digest("base64")}`,
     name: packageJson.name,
@@ -83,8 +102,23 @@ interface PackageManifest {
   version: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   [key: string]: unknown;
+}
+
+async function readPackedModuleSources(
+  inspectionDir: string,
+  packedPaths: readonly string[],
+): Promise<readonly PackedPackageSource[]> {
+  return Promise.all(
+    packedPaths
+      .filter((entry) => /^package\//.test(entry) && /\.[cm]?[jt]sx?$/.test(entry))
+      .map(async (entry) => ({
+        path: entry.replace(/^package\//, ""),
+        source: await readFile(path.join(inspectionDir, entry), "utf8"),
+      })),
+  );
 }
 
 async function readManifest(file: string): Promise<PackageManifest> {

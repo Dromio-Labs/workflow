@@ -65,6 +65,7 @@ const pendingCallbacks = new Map<string, Set<HighlightCallback>>();
 const pendingHighlights = new Set<string>();
 let highlighterPromise: Promise<Highlighter> | null = null;
 
+/** @internal */
 export const dromioCodeHighlighter: CodeHighlighterPlugin = {
 	name: "shiki",
 	type: "code-highlighter",

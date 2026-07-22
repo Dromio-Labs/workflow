@@ -4,10 +4,13 @@ import {
   packageDirectories,
   selectCanonicalPublishTarget,
 } from "./package-closure.js";
-import { assertPackedPackageRuntimePayload } from "./package-payload.js";
+import {
+  assertPackedPackageDependencyClosure,
+  assertPackedPackageRuntimePayload,
+} from "./package-payload.js";
 
 describe("Workflow release ownership", () => {
-  test("pins the canonical 0.2.2 package to the Kernel foundation closure", async () => {
+  test("pins the canonical 0.2.3 package to the Kernel foundation closure", async () => {
     const versions = Object.fromEntries(await Promise.all(
       packageDirectories.map(async (directory) => {
         const manifest = await Bun.file(
@@ -18,16 +21,28 @@ describe("Workflow release ownership", () => {
     ));
 
     expect(versions).toEqual({
-      "@dromio/chat-shell-ui": "0.1.10",
+      "@dromio/chat-shell-ui": "0.1.11",
       "@dromio/execution": "0.1.43",
       "@dromio/protocols": "0.2.1",
       "@dromio/thread-service": "0.2.1",
       "@dromio/trigger": "0.1.44",
-      "@dromio/workflow": "0.2.2",
+      "@dromio/workflow": "0.2.3",
       "@dromio/workflow-canvas-protocol": "0.1.3",
       "@dromio/workflow-kernel": "0.1.8",
-      "@dromio/workflow-room-protocol": "0.1.44",
+      "@dromio/workflow-room-protocol": "0.1.45",
     });
+  });
+
+  test("owns every external package imported by the canonical runtime", async () => {
+    const manifest = await Bun.file(new URL("../packages/sdk/package.json", import.meta.url)).json() as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+
+    expect(manifest.dependencies?.["cron-parser"]).toBe("5.5.0");
+    expect(manifest.dependencies?.typescript).toBe("5.9.3");
+    expect(manifest.devDependencies?.["cron-parser"]).toBeUndefined();
+    expect(manifest.devDependencies?.typescript).toBeUndefined();
   });
 
   test("keeps MCP and terminal UI integrations optional in headless installs", async () => {
@@ -52,12 +67,12 @@ describe("Workflow release ownership", () => {
   test("publishes only the canonical Workflow package from the build closure", () => {
     const closure = [
       { name: "@dromio/protocols", version: "0.2.1" },
-      { name: canonicalPackageName, version: "0.2.2" },
+      { name: canonicalPackageName, version: "0.2.3" },
       { name: "@dromio/thread-service", version: "0.2.1" },
     ];
 
     expect(selectCanonicalPublishTarget(closure)).toEqual([
-      { name: canonicalPackageName, version: "0.2.2" },
+      { name: canonicalPackageName, version: "0.2.3" },
     ]);
   });
 
@@ -118,6 +133,63 @@ describe("Workflow release ownership", () => {
           "package/dist/index.js",
         ],
       ),
+    ).not.toThrow();
+  });
+
+  test("rejects bare runtime and declaration imports missing from the packed manifest", () => {
+    expect(() =>
+      assertPackedPackageDependencyClosure(
+        {
+          dependencies: { zod: "4.4.3" },
+          name: canonicalPackageName,
+          version: "0.2.3",
+        },
+        [
+          {
+            path: "dist/index.js",
+            source: [
+              'import { z } from "zod";',
+              'import ts from "typescript";',
+              'const cron = require("cron-parser");',
+              'type State = import("src/packages/chatshell-response-protocol/types").ConversationState;',
+              'const example = "import hidden from \\\"string-only\\\"";',
+            ].join("\n"),
+          },
+        ],
+      )
+    ).toThrow("cron-parser (dist/index.js); src (dist/index.js); typescript (dist/index.js)");
+  });
+
+  test("accepts dependencies, peers, builtins, relatives, and self imports", () => {
+    expect(() =>
+      assertPackedPackageDependencyClosure(
+        {
+          dependencies: { "cron-parser": "5.5.0", typescript: "5.9.3" },
+          name: canonicalPackageName,
+          peerDependencies: { react: "^19.0.0" },
+          version: "0.2.3",
+        },
+        [
+          {
+            path: "dist/index.js",
+            source: [
+              'import "./chunk.js";',
+              'import "bun:sqlite";',
+              'import "node:fs";',
+              'import "path";',
+              'import "@dromio/workflow/product";',
+              'import ts from "typescript";',
+              'export { CronExpressionParser } from "cron-parser";',
+              'const React = require("react/jsx-runtime");',
+              'const lazy = import("react");',
+            ].join("\n"),
+          },
+          {
+            path: "dist/index.d.ts",
+            source: 'export type Node = import("react").ReactNode;',
+          },
+        ],
+      )
     ).not.toThrow();
   });
 });

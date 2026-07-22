@@ -8,7 +8,7 @@ import {
 	type ResponseMedia,
 	type ToolInput,
 	type ToolStatus,
-} from "@chatshell/response-protocol";
+} from "../packages/chatshell-response-protocol";
 
 import type { ChatShellControlPlane } from "../contracts/chatShellManifest";
 

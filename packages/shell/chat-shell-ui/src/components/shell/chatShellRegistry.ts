@@ -1,4 +1,7 @@
-import { initialConversationState } from "@chatshell/response-protocol";
+import {
+	initialConversationState,
+	type ConversationState,
+} from "../../packages/chatshell-response-protocol";
 import type {
 	ChatShellControlPlane,
 	ChatShellManifest,
@@ -12,9 +15,21 @@ import type {
 	ChatShellWorkspace,
 } from "../../contracts/chatShellManifest";
 import {
+	type ConversationProjection,
 	getThreadConversationView,
 	type ThreadConversationView,
 } from "../../runtime/controlPlaneConversation";
+
+type ActiveShellConversationProjection = Omit<
+	ChatShellRuntime["conversation"],
+	"state"
+> & {
+	isStreaming: boolean;
+	metadata: ConversationProjection;
+	runtimeState: ChatShellRuntime["conversation"]["state"];
+	state: ConversationState;
+	threadId: string;
+};
 
 export function createChatShellRegistry(manifest: ChatShellManifest) {
 	return {
@@ -99,7 +114,7 @@ export function buildActiveShellProjection({
 		controlPlane,
 		resolvedActiveThreadId,
 	);
-	const conversation = {
+	const conversation: ActiveShellConversationProjection = {
 		...runtimeConversation,
 		isStreaming: runtimeConversation.state === "streaming",
 		metadata: threadView.projection,

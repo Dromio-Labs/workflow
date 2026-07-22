@@ -189,12 +189,12 @@ async function verifyPublicPackage(specifier: string): Promise<void> {
   const expectedVersion = await waitForNpmVersion(specifier);
   const dependencySpecifier = dependencyValueFor(specifier);
   const temporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-"));
+  const headlessTemporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-headless-"));
   try {
     await writeFile(path.join(temporary, "package.json"), JSON.stringify({
       devDependencies: {
         "@types/bun": "1.3.14",
         "@types/node": "24.13.2",
-        typescript: "5.9.3",
       },
       dependencies: { [canonicalPackageName]: dependencySpecifier, zod: "4.4.3" },
       name: "dromio-workflow-public-verification",
@@ -215,21 +215,50 @@ async function verifyPublicPackage(specifier: string): Promise<void> {
       include: ["workflow.ts"],
     }, null, 2));
     await installPublicDependencies(temporary);
-    const installedPackage = JSON.parse(
-      await readFile(path.join(temporary, "node_modules", "@dromio", "workflow", "package.json"), "utf8"),
-    ) as { name?: string; version?: string };
-    if (installedPackage.name !== canonicalPackageName || installedPackage.version !== expectedVersion) {
-      throw new Error(
-        `Installed ${installedPackage.name || "unknown package"}@${installedPackage.version || "unknown version"}, ` +
-        `expected ${canonicalPackageName}@${expectedVersion}.`,
-      );
-    }
+    await assertInstalledPackageVersion(temporary, expectedVersion);
     run("npm", ["audit", "--omit=dev", "--audit-level=moderate"], temporary);
     run("node", [path.join(temporary, "node_modules", "typescript", "bin", "tsc"), "-p", "tsconfig.json"], temporary);
     run("bun", ["run", "workflow.ts"], temporary);
+    await verifyPublicHeadlessPackage(
+      dependencySpecifier,
+      expectedVersion,
+      headlessTemporary,
+    );
     console.log(`Verified clean public consumer for ${specifier} with the supported Bun runtime.`);
   } finally {
     await rm(temporary, { force: true, recursive: true });
+    await rm(headlessTemporary, { force: true, recursive: true });
+  }
+}
+
+async function verifyPublicHeadlessPackage(
+  dependencySpecifier: string,
+  expectedVersion: string,
+  cwd: string,
+): Promise<void> {
+  await mkdir(path.join(cwd, "tmp"), { recursive: true });
+  await writeFile(path.join(cwd, "package.json"), JSON.stringify({
+    dependencies: { [canonicalPackageName]: dependencySpecifier, zod: "4.4.3" },
+    name: "dromio-workflow-public-headless-verification",
+    private: true,
+    type: "module",
+  }, null, 2));
+  await writeFile(path.join(cwd, "headless.mjs"), headlessWorkflowSource());
+  await installPublicHeadlessDependencies(cwd);
+  await assertInstalledPackageVersion(cwd, expectedVersion);
+  run("bun", ["headless.mjs"], cwd);
+  console.log("Verified no-hoist public package graph without optional integrations.");
+}
+
+async function assertInstalledPackageVersion(cwd: string, expectedVersion: string): Promise<void> {
+  const installedPackage = JSON.parse(
+    await readFile(path.join(cwd, "node_modules", "@dromio", "workflow", "package.json"), "utf8"),
+  ) as { name?: string; version?: string };
+  if (installedPackage.name !== canonicalPackageName || installedPackage.version !== expectedVersion) {
+    throw new Error(
+      `Installed ${installedPackage.name || "unknown package"}@${installedPackage.version || "unknown version"}, ` +
+      `expected ${canonicalPackageName}@${expectedVersion}.`,
+    );
   }
 }
 
@@ -278,6 +307,45 @@ async function installPublicDependencies(cwd: string): Promise<void> {
   }
 }
 
+async function installPublicHeadlessDependencies(cwd: string): Promise<void> {
+  const temporary = path.join(cwd, "tmp");
+  for (let attempt = 1; attempt <= registryAttempts; attempt += 1) {
+    const result = spawnSync("bun", [
+      "install",
+      "--ignore-scripts",
+      "--linker=isolated",
+      "--omit=peer",
+      "--omit=optional",
+      "--no-cache",
+    ], {
+      cwd,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        BUN_INSTALL_CACHE_DIR: path.join(cwd, "cache"),
+        BUN_TMPDIR: temporary,
+        TEMP: temporary,
+        TMP: temporary,
+        TMPDIR: temporary,
+      },
+    });
+    if (result.status === 0) {
+      if (result.stdout) process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      return;
+    }
+    const output = `${result.stdout || ""}\n${result.stderr || ""}`;
+    const propagationFailure = /E404|ETARGET|404 Not Found|No matching version/i.test(output);
+    if (!propagationFailure || attempt === registryAttempts) {
+      if (result.stdout) process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+      throw new Error(`isolated bun install failed in ${cwd}`);
+    }
+    console.log(`Waiting for npm headless dependency propagation (${attempt}/${registryAttempts})...`);
+    await delay(registryRetryDelayMs);
+  }
+}
+
 function delay(milliseconds: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
@@ -311,6 +379,15 @@ if (session.status !== "completed" || session.state.message !== "Hello, Dromio!"
   throw new Error(\`Unexpected workflow result: \${JSON.stringify(session.state)}\`);
 }
 console.log(session.state.message);
+`;
+}
+
+function headlessWorkflowSource(): string {
+  return `import { artifactRefJsonSchema } from "@dromio/workflow/product";
+${representativeWorkflowSource()}
+if (artifactRefJsonSchema.type !== "object") {
+  throw new Error("Missing product runtime export.");
+}
 `;
 }
 

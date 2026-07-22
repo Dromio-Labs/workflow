@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import type { ChatMessage } from "@chatshell/response-protocol";
+import type { ChatMessage } from "../../packages/chatshell-response-protocol";
 import { Icon } from "../ui/Icon";
 
 type InlineMedia = NonNullable<ChatMessage["media"]>[number];

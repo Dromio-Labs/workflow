@@ -3,7 +3,7 @@ import {
 	type ConversationState,
 	getToolCall,
 	type MessagePart,
-} from "@chatshell/response-protocol";
+} from "../../packages/chatshell-response-protocol";
 import { useState } from "react";
 import type { ChatShellRuntime } from "../../contracts/chatShellManifest";
 import { DromioMarkdown } from "./markdown";
