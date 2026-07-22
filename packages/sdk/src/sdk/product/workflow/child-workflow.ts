@@ -310,7 +310,11 @@ export async function driveChildWorkflow<TInput, TSession extends ChildWorkflowS
     const blocking = pendingHooks.filter((request) => request.kind !== "question");
     let advanced = false;
     for (const request of blocking) {
-      const mirrorToken = mirrorChildHookToken(namespace, request.token);
+      const mirrorToken = mirrorChildHookToken(
+        namespace,
+        request.token,
+        context.step.runId,
+      );
       if (!(mirrorToken in context.hookAnswers)) continue;
       if (session.consumedHookTokens?.has(request.token)) continue;
       if (!session.resumeHook) {

@@ -61,6 +61,11 @@ export type {
 } from "./operation.types.js";
 
 export {
+  assertHookOutput,
+  HookOutputValidationError,
+} from "./hook-validation.js";
+
+export {
   ask,
   commandEvent,
   createHook,

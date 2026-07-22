@@ -48,6 +48,7 @@ export type WorkflowCatalogItemKind =
   | "approval"
   | "builtin"
   | "composite"
+  | "delegate"
   | "evaluation"
   | "forEach"
   | "fork"

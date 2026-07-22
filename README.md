@@ -53,6 +53,80 @@ winner makes a stale write fail with an explicit revision conflict. Retry that
 operation from a fresh read instead of overwriting newer events. The bundled
 SQLite store enforces the same compare-and-swap contract across restarts.
 
+## External harness delegation
+
+Use `step.delegate()` when a bounded workflow node should be completed by an
+external harness such as Codex, Claude, or OpenCode. The workflow app owns the
+durable graph, checkpoint, suspension, output validation, resumption, and
+routing. The harness owns inference, context management, tool use, and its own
+approval policy. Capability declarations describe requirements; they do not
+grant permissions.
+
+```ts
+import { step } from "@dromio/workflow";
+import { z } from "zod";
+
+export const research = step.delegate({
+  id: "content.research",
+  input: { topic: z.string() },
+  instructions: ({ input }) => `Research competitors for ${input.topic}.`,
+  context: ({ input }) => ({ topic: input.topic, locale: "en-GB" }),
+  capabilities: ["browser", "search"],
+  output: { report: z.string() },
+  title: "Competitor research",
+});
+```
+
+Reaching the step creates a durable `handoff_requested` pending hook. Its
+payload contains the resolved instructions, explicitly selected context,
+capability requirements, artifact references when supplied, run/workflow/step
+identity, and the machine-readable output schema. The run snapshot is the
+authoritative handoff after reconnect or restart.
+
+The workflow control-plane MCP provider exposes `dromio.resume_hook`. It
+accepts the hook `token`, a JSON-compatible `value`, and optional observational
+`source` fields (`adapter` and `participant`), then returns the updated run
+snapshot. Invalid output leaves the same hook waiting for a corrected result.
+Tool authorization continues to be enforced by the external harness and the
+control-plane deployment.
+
+```mermaid
+sequenceDiagram
+    participant Runtime as Workflow runtime
+    participant App as Workflow app
+    participant Harness as External harness
+    Runtime->>Runtime: Checkpoint before delegated step
+    Runtime->>App: Create handoff_requested hook
+    App-->>Harness: Notify run.suspended
+    Harness->>App: Inspect run and pending hook
+    Harness->>Harness: Perform inference and tool loop
+    Harness->>App: Call dromio.resume_hook
+    App->>Runtime: Validate and apply canonical resume
+    Runtime->>Runtime: Complete step and continue graph
+    Runtime-->>Harness: Return updated run snapshot
+```
+
+A repeated SEO workflow can therefore delegate research and drafting while
+keeping deterministic and human-controlled work in its existing primitives:
+
+```mermaid
+flowchart LR
+    R["Delegate research"] --> D["Delegate draft"]
+    D --> G{"Quality gate"}
+    G -->|revise| D
+    G -->|pass| A["Human approval"]
+    A --> P["Publish step"]
+    P --> S["Wait for indexing signal"]
+```
+
+In this lifecycle, an **event** is an observation emitted by the workflow; a
+**hook** is an addressed response required by a suspended step; a **signal** is
+an independently arriving correlated occurrence; a **checkpoint** is durable
+state used for recovery or reruns; **delegation** is a bounded handoff to an
+external harness; and the **harness** is the agent environment that owns
+inference, context management, tools, and approvals. A suspended run is
+durably waiting—it is not an in-memory agent process.
+
 ## Examples and guides
 
 The Workflow SDK guide progresses from the first typed workflow through

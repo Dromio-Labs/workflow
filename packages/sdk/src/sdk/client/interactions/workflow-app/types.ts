@@ -459,7 +459,13 @@ export type WorkflowAppSelectModelWorkerInput = WorkflowAppModelWorkerTarget & {
   requestedModelId?: string;
 };
 
+export type WorkflowAppHookResumeSource = {
+  adapter?: string;
+  participant?: string;
+};
+
 export type WorkflowAppResumeHookInput = {
+  source?: WorkflowAppHookResumeSource;
   token: string;
   value: unknown;
 };
