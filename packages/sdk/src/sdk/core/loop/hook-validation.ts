@@ -1,7 +1,12 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
+import formatsPlugin from "ajv-formats";
 import type { HookRequest } from "./loop.types.js";
 
 const hookOutputValidator = new Ajv2020({ allErrors: true, strict: false });
+const addFormats = (
+  "default" in formatsPlugin ? formatsPlugin.default : formatsPlugin
+) as unknown as (validator: Ajv2020) => void;
+addFormats(hookOutputValidator);
 
 export class HookOutputValidationError extends Error {
   constructor(

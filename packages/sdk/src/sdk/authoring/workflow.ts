@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import {
   defineOperationContract,
+  type QuestionResolverRegistry,
   type StepContractSourceMap,
 } from "../core/index.js";
 import type {
@@ -25,6 +26,7 @@ type WorkflowConfig = object;
 export type AuthoredWorkflowSource = {
   readonly catalog: ReturnType<typeof createWorkflowCatalog>;
   readonly document: WorkflowDocument;
+  readonly questionResolvers?: QuestionResolverRegistry;
 };
 
 export type AuthoredWorkflowDefinition = {
@@ -47,6 +49,7 @@ export type AuthoredWorkflow<
   readonly document: WorkflowDocument;
   readonly input: TInputContracts;
   readonly output: TOutputContracts;
+  readonly questionResolvers: QuestionResolverRegistry;
   readonly signals: readonly SignalDefinition[];
   readonly triggers: readonly WorkflowTriggerDescriptor[];
   readonly workflows: readonly AuthoredWorkflowSource[];
@@ -66,6 +69,7 @@ export type AuthoredWorkflowInput<
   input?: TInputContracts;
   model?: ModelWorkerSource;
   output?: TOutputContracts;
+  questionResolvers?: QuestionResolverRegistry;
   triggers?: readonly WorkflowTriggerDescriptor[];
   use?: TUse;
   workflows?: readonly AuthoredWorkflowSource[];
@@ -94,12 +98,18 @@ export function workflow<
       document: child.document,
     },
   ]));
+  const questionResolvers = Object.assign(
+    {},
+    ...input.catalog.map(authoredItemQuestionResolvers),
+    input.questionResolvers ?? {},
+  ) as QuestionResolverRegistry;
   const compileInput = {
     catalog: workflowCatalog,
     childWorkflows,
     config: input.config,
     document,
     model: input.model,
+    questionResolvers,
     use: input.use,
   };
   const compiled = compileWorkflowDocument<unknown>(compileInput);
@@ -121,6 +131,7 @@ export function workflow<
     document,
     input: workflowInput as TInputContracts,
     output: workflowOutput as TOutputContracts,
+    questionResolvers,
     signals: input.catalog.flatMap((item) => authoredItemSignals(item)),
     triggers: input.triggers ?? [],
     workflows,
@@ -151,6 +162,12 @@ function authoredItemWorkflows(item: WorkflowCatalogItem): readonly AuthoredWork
     workflows?: readonly AuthoredWorkflowSource[];
   }).workflows;
   return value ?? [];
+}
+
+function authoredItemQuestionResolvers(item: WorkflowCatalogItem): QuestionResolverRegistry {
+  return (item as WorkflowCatalogItem & {
+    questionResolvers?: QuestionResolverRegistry;
+  }).questionResolvers ?? {};
 }
 
 function mergeWorkflowSources(

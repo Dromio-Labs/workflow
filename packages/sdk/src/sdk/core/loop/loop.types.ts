@@ -191,6 +191,7 @@ export type StepDefinition<TUse = unknown, TInput = unknown> = {
   maxRetries?: number;
   models?: StepModelOperation[];
   output?: StepContractRecord;
+  questionResolvers?: QuestionResolverRegistry;
   run: (context: StepContext<TUse, TInput>) => Promise<StepResult> | StepResult;
 };
 
@@ -202,6 +203,7 @@ export type StepOptions = {
   maxRetries?: number;
   models?: StepModelOperation[];
   output?: StepContractSourceMap;
+  questionResolvers?: QuestionResolverRegistry;
 };
 
 export type StepModelOperation = {
@@ -378,6 +380,7 @@ export type LoopGraphNode = {
   maxRetries: number;
   models?: LoopGraphModelOperation[];
   output?: LoopGraphPort[];
+  role?: string;
 };
 
 export type LoopGraphCatalogItem = {
@@ -437,6 +440,7 @@ export type LoopGraphChildNode = {
     startNodeId: string;
   };
   output?: LoopGraphPort[];
+  role?: string;
   route?: {
     id: string;
     label?: string;

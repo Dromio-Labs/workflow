@@ -112,12 +112,14 @@ describe("root workflow authoring", () => {
     expect(answerAudience.kind).toBe("question");
     expect(answerAudience.sideEffects).toEqual(["human.input"]);
     expect(session.status).toBe("waiting");
-    expect(session.pendingQuestions).toEqual([{
+    expect(session.pendingQuestions).toEqual([expect.objectContaining({
+      answerSchema: expect.objectContaining({ minLength: 1, type: "string" }),
       id: "audience",
       prompt: "Who should receive the update?",
+      resolverId: "example.ask-audience.answer",
       title: "Audience",
       type: "text",
-    }]);
+    })]);
 
     await session.answer({ questionId: "audience", value: " developers " });
     await session.resume();
@@ -129,9 +131,12 @@ describe("root workflow authoring", () => {
 
     const invalid = await authoredWorkflow.start({ prompt: "the update" });
     await invalid.answer({ questionId: "audience", value: " " });
-    await expect(invalid.resume()).rejects.toThrow(
-      "Operation contract example.ask-audience.answer failed",
-    );
+    expect(invalid.status).toBe("waiting");
+    expect(invalid.answers).not.toHaveProperty("audience");
+    expect(invalid.pendingQuestions[0]?.id).toBe("audience");
+    await invalid.answer({ questionId: "audience", value: "operators" });
+    await invalid.resume();
+    expect(invalid.status).toBe("completed");
   });
 
   test("declares a typed signal and suspends through step.waitFor", async () => {
@@ -921,7 +926,10 @@ describe("root workflow authoring", () => {
     expect(first.status).toBe("waiting");
 
     const hydrated = makeParent().hydrate(first.snapshot());
-    await hydrated.answer({ questionId: "beta-answer", value: "resumed" });
+    await hydrated.answer({
+      questionId: hydrated.pendingQuestions[0]!.id,
+      value: "resumed",
+    });
     await hydrated.resume();
 
     expect(hydrated.status).toBe("completed");
@@ -1018,6 +1026,403 @@ describe("root workflow authoring", () => {
     expect(nestedEvents).toContain("example.evaluate-answer.gate");
     expect(ejected.document.nodes.map((node) => node.id)).toEqual(["assess", "gate"]);
     expect(ejected.document.nodes.map((node) => node.kind)).toEqual(["model", "gate"]);
+  });
+
+  test("builds workflow.judge as the canonical one-pass judgment bundle", async () => {
+    const worker: ModelWorkerPort = {
+      async complete() {
+        return JSON.stringify({
+          evaluation: {
+            message: "Ready.",
+            nextAction: "complete",
+            score: 0.9,
+            status: "pass",
+          },
+        });
+      },
+      async completeJson() {
+        throw new Error("judge uses step.model as one operation");
+      },
+    };
+    const policy = defineScorePolicy({
+      gaps: [],
+      gates: [
+        { id: "pass", minScore: 0.8, nextAction: "complete", status: "pass" },
+        { id: "revise", minScore: 0, nextAction: "revise", status: "revise" },
+      ],
+      id: "score.canonical-judge",
+      risks: [],
+      satisfies: [],
+    });
+    const judge = workflow.judge({
+      evaluator: {
+        model: worker,
+        output: { evaluation: promptedOperationEvaluationSchema },
+        prompt: { kind: "text", text: "Judge the candidate." },
+      },
+      id: "canonical-judge",
+      input: { candidate: z.string() },
+      policy,
+    });
+
+    const session = await judge.start({ candidate: "ready" });
+    const withoutRoles = workflow({
+      catalog: [judge.assessor, judge.gate],
+      document: {
+        ...judge.document,
+        id: "canonical-judge-without-roles",
+        nodes: judge.document.nodes.map(({ role: _role, ...node }) => node),
+      },
+      input: judge.input,
+      output: judge.output,
+    });
+    const roleNeutralSession = await withoutRoles.start({ candidate: "ready" });
+
+    expect(session.state.decision).toMatchObject({ score: 0.9, status: "completed" });
+    expect(judge.graph().nodes.map((node) => ({ id: node.id, kind: node.kind, role: node.role })))
+      .toEqual([
+        { id: "assess", kind: "model", role: "judge" },
+        { id: "gate", kind: "gate", role: "gate" },
+      ]);
+    expect(judge.eject().assessor.kind).toBe("model");
+    expect(roleNeutralSession.state.decision).toEqual(session.state.decision);
+  });
+
+  test("judges delegated multi-agent evidence through deterministic aggregation", async () => {
+    const judgmentSchema = z.object({
+      gaps: z.array(z.string()),
+      judgeId: z.string(),
+      rationale: z.string(),
+      score: z.number().min(0).max(1),
+    });
+    const panel = step.delegate({
+      capabilities: { preferred: ["subagents"] },
+      id: "panel.delegate",
+      input: { candidate: z.string() },
+      instructions: "Ask independent judges to score the candidate.",
+      output: { judgments: z.array(judgmentSchema).min(2) },
+    });
+    const aggregate = step({
+      id: "panel.aggregate",
+      input: { judgments: z.array(judgmentSchema).min(2) },
+      output: { evaluation: promptedOperationEvaluationSchema },
+      run({ input }) {
+        const score = input.judgments.reduce((total, item) => total + item.score, 0)
+          / input.judgments.length;
+        const evaluation: z.infer<typeof promptedOperationEvaluationSchema> = {
+          message: input.judgments.map((item) => item.rationale).join(" "),
+          nextAction: score >= 0.8 ? "complete" : "revise",
+          score,
+          status: score >= 0.8 ? "pass" : "revise",
+        };
+        return { evaluation };
+      },
+    });
+    const assessor = workflow({
+      catalog: [panel, aggregate],
+      document: {
+        edges: [
+          { id: "trigger-panel", source: "trigger", target: "panel" },
+          { id: "panel-aggregate", source: "panel", target: "aggregate" },
+          { id: "aggregate-end", source: "aggregate", target: "end" },
+        ],
+        end: { id: "end", output: { evaluation: { jsonSchema: z.toJSONSchema(promptedOperationEvaluationSchema) } }, type: "result" },
+        id: "panel-assessor",
+        nodes: [
+          { catalogItemId: panel.id, id: "panel", kind: "delegate" },
+          { catalogItemId: aggregate.id, id: "aggregate" },
+        ],
+        trigger: { id: "trigger", input: { candidate: { jsonSchema: { type: "string" } } }, type: "manual" },
+        version: 1,
+      },
+      input: { candidate: z.string() },
+      output: { evaluation: promptedOperationEvaluationSchema },
+    });
+    const policy = defineScorePolicy({
+      gaps: [],
+      gates: [
+        { id: "pass", minScore: 0.8, nextAction: "complete", status: "pass" },
+        { id: "revise", minScore: 0, nextAction: "revise", status: "revise" },
+      ],
+      id: "score.panel",
+      risks: [],
+      satisfies: [],
+    });
+    const judge = workflow.judge({
+      assessor,
+      id: "panel-judge",
+      input: { candidate: z.string() },
+      policy,
+    });
+    const session = await judge.start({ candidate: "todo requirements" });
+
+    expect(session.status).toBe("waiting");
+    expect(session.pendingHooks[0]?.input).toMatchObject({
+      capabilityRequirements: { preferred: ["subagents"], required: [] },
+    });
+    await session.resumeHook({
+      token: session.pendingHooks[0]!.token,
+      value: {
+        judgments: [
+          { gaps: [], judgeId: "judge-a", rationale: "Clear.", score: 0.8 },
+          { gaps: [], judgeId: "judge-b", rationale: "Complete.", score: 0.9 },
+        ],
+      },
+    });
+
+    expect(session.status).toBe("completed");
+    expect(session.state.evaluation).toMatchObject({ status: "pass" });
+    expect((session.state.evaluation as { score: number }).score).toBeCloseTo(0.85);
+    expect(session.state.decision).toMatchObject({ status: "completed" });
+    expect(judge.graph().nodes[0]).toMatchObject({ kind: "workflow", role: "judge" });
+  });
+
+  test("revises with workflow.judgeUntil until the deterministic gate passes", async () => {
+    let assessments = 0;
+    const worker: ModelWorkerPort = {
+      async complete() {
+        assessments += 1;
+        const passed = assessments > 1;
+        return JSON.stringify({
+          evaluation: {
+            message: passed ? "Ready." : "Add persistence.",
+            nextAction: passed ? "complete" : "revise",
+            score: passed ? 0.91 : 0.4,
+            status: passed ? "pass" : "revise",
+          },
+        });
+      },
+      async completeJson() {
+        throw new Error("judge uses step.model as one operation");
+      },
+    };
+    const policy = defineScorePolicy({
+      gaps: [],
+      gates: [
+        { id: "pass", minScore: 0.8, nextAction: "complete", status: "pass" },
+        { id: "revise", minScore: 0, nextAction: "revise", status: "revise" },
+      ],
+      id: "score.judge-until",
+      risks: [],
+      satisfies: [],
+    });
+    const judge = workflow.judge({
+      evaluator: {
+        model: worker,
+        output: { evaluation: promptedOperationEvaluationSchema },
+        prompt: { kind: "text", text: "Judge the candidate." },
+      },
+      id: "judge-until.assessment",
+      input: { candidate: z.string() },
+      policy,
+    });
+    const produce = step({
+      id: "judge-until.produce",
+      input: { request: z.string() },
+      output: { candidate: z.string() },
+      run: ({ input }) => ({ candidate: `draft:${input.request}` }),
+    });
+    const feedback: string[] = [];
+    const revise = step({
+      id: "judge-until.revise",
+      input: {
+        candidate: z.string(),
+        evaluation: promptedOperationEvaluationSchema,
+      },
+      output: { candidate: z.string() },
+      run({ input }) {
+        feedback.push(input.evaluation.message ?? "");
+        return { candidate: `${input.candidate}:persistent` };
+      },
+    });
+    const quality = workflow.judgeUntil({
+      id: "judge-until",
+      input: { request: z.string() },
+      judge,
+      maxAttempts: 3,
+      produce,
+      revise,
+    });
+
+    const session = await quality.start({ request: "todo" });
+
+    expect(session.status).toBe("completed");
+    expect(session.state).toMatchObject({
+      attempts: 2,
+      candidate: "draft:todo:persistent",
+      decision: { status: "completed" },
+      evaluation: { score: 0.91 },
+    });
+    expect(feedback).toEqual(["Add persistence."]);
+    expect(assessments).toBe(2);
+    expect(quality.graph().nodes.map((node) => node.role)).toEqual([
+      "resolve",
+      "judge",
+      "gate",
+      "revise",
+      "complete",
+    ]);
+  });
+
+  test("clarifies a todo app into a stage-aware typed contract one question at a time", async () => {
+    const contractSchema = z.object({
+      authentication: z.string().optional(),
+      deployment: z.string().optional(),
+      persistence: z.string().optional(),
+      platform: z.string().optional(),
+      stage: z.enum(["prototype", "mvp", "production"]).optional(),
+      users: z.string().optional(),
+    });
+    const blockerSchema = z.object({ id: z.string(), message: z.string() });
+    const blockersSchema = z.array(blockerSchema);
+    const requiredForStage = (contract: z.infer<typeof contractSchema>) => {
+      const keys = contract.stage === "prototype"
+        ? ["platform"]
+        : ["platform", "users", "persistence", "authentication", "deployment"];
+      return [
+        ...(!contract.stage ? [{ id: "stage", message: "Choose delivery stage." }] : []),
+        ...keys.filter((key) => !contract[key as keyof typeof contract]).map((key) => ({
+          id: key,
+          message: `Define ${key}.`,
+        })),
+      ];
+    };
+    const worker: ModelWorkerPort = {
+      async complete(modelInput) {
+        const rendered = JSON.parse(modelInput.userPrompt ?? "{}") as {
+          contract?: z.infer<typeof contractSchema>;
+        };
+        const complete = requiredForStage(rendered.contract ?? {}).length === 0;
+        return JSON.stringify({
+          evaluation: {
+            message: complete ? "No blocking requirements." : "Clarification required.",
+            nextAction: complete ? "complete" : "ask",
+            score: complete ? 1 : 0.4,
+            status: complete ? "pass" : "needs_input",
+          },
+        });
+      },
+      async completeJson() {
+        throw new Error("clarification judge uses one model operation");
+      },
+    };
+    const policy = defineScorePolicy({
+      gaps: [],
+      gates: [
+        { id: "complete", minScore: 0.9, nextAction: "complete", status: "pass" },
+        { id: "clarify", minScore: 0, nextAction: "ask", status: "needs_input" },
+      ],
+      id: "score.todo-requirements",
+      risks: [],
+      satisfies: [],
+    });
+    const judge = workflow.judge({
+      evaluator: {
+        buildPrompt: ({ input }) => input,
+        model: worker,
+        output: { evaluation: promptedOperationEvaluationSchema },
+        prompt: { kind: "text", text: "Judge requirement completeness." },
+      },
+      id: "todo-clarification.judge",
+      input: { contract: contractSchema },
+      policy,
+    });
+    const resolve = step({
+      id: "todo-clarification.resolve",
+      input: { request: z.string() },
+      output: { blockers: blockersSchema, contract: contractSchema },
+      run: () => ({ blockers: [{ id: "stage", message: "Choose delivery stage." }], contract: {} }),
+    });
+    const revise = step({
+      id: "todo-clarification.revise",
+      input: { blockers: blockersSchema, contract: contractSchema },
+      output: { blockers: blockersSchema, contract: contractSchema },
+      run: ({ input }) => ({
+        blockers: requiredForStage(input.contract),
+        contract: input.contract,
+      }),
+    });
+    const clarify = workflow.clarifyUntil({
+      answer: z.string().trim().min(1),
+      blockers: blockersSchema,
+      contract: contractSchema,
+      id: "todo-clarification",
+      input: { request: z.string() },
+      judge,
+      maxRounds: 8,
+      merge({ answer, contract }) {
+        const blocker = requiredForStage(contract)[0];
+        return {
+          blockers: requiredForStage({ ...contract, [blocker!.id]: answer }),
+          contract: { ...contract, [blocker!.id]: answer },
+        };
+      },
+      question({ blockers }) {
+        const blocker = blockers[0]!;
+        return blocker.id === "stage"
+          ? {
+            id: blocker.id,
+            options: ["prototype", "mvp", "production"].map((value) => ({ label: value, value })),
+            prompt: "How far should this todo app go?",
+            requirementId: blocker.id,
+            title: "Delivery stage",
+            type: "choice",
+          }
+          : {
+            id: blocker.id,
+            prompt: `What should we decide for ${blocker.id}?`,
+            requirementId: blocker.id,
+            title: blocker.id,
+            type: "text",
+          };
+      },
+      resolve,
+      revise,
+    });
+    const session = await clarify.start({ request: "create a todo app" });
+
+    expect(session.status).toBe("waiting");
+    expect(session.pendingQuestions.map((question) => question.id)).toEqual(["stage"]);
+    await session.answer({ questionId: "stage", value: "   " });
+    expect(session.status).toBe("waiting");
+    expect(session.pendingQuestions.map((question) => question.id)).toEqual(["stage"]);
+
+    const answers: Record<string, string> = {
+      authentication: "email magic link",
+      deployment: "managed web hosting",
+      persistence: "PostgreSQL",
+      platform: "responsive web",
+      stage: "mvp",
+      users: "individual users",
+    };
+    while (session.status === "waiting") {
+      const pending = session.pendingQuestions[0]!;
+      await session.answer({ questionId: pending.id, value: answers[pending.id] });
+      await session.resume();
+    }
+
+    expect(session.status).toBe("completed");
+    expect(session.state.contract).toEqual({
+      authentication: "email magic link",
+      deployment: "managed web hosting",
+      persistence: "PostgreSQL",
+      platform: "responsive web",
+      stage: "mvp",
+      users: "individual users",
+    });
+    expect(session.state.acceptedAnswers).toHaveLength(6);
+    expect(session.state.acceptedAnswers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ questionId: "stage", requirementId: "stage", source: "human", value: "mvp" }),
+    ]));
+    expect(clarify.graph().nodes.map((node) => node.role)).toEqual([
+      "resolve",
+      "judge",
+      "gate",
+      "ask",
+      "merge",
+      "revise",
+      "complete",
+    ]);
   });
 
   test("ejects evaluation documents and explicit source atomically", async () => {

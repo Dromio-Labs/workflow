@@ -4,6 +4,7 @@ import {
   type CandidateScorePolicy,
   type ContractedStepContext,
   type InferStepContractOutput,
+  type QuestionResolverRegistry,
   type StepContractSourceMap,
   type StepDefinition as RuntimeStepDefinition,
   type StepModelOperation,
@@ -66,6 +67,7 @@ export type AuthoredStepInput<
   models?: StepModelOperation[];
   output?: TOutputContracts;
   prompts?: Record<string, string>;
+  questionResolvers?: QuestionResolverRegistry;
   run(
     context: AuthoredStepContext<TInputContracts, TConfig>,
   ):
@@ -92,6 +94,7 @@ export type AuthoredStepDefinition<
   create(input?: WorkflowCatalogCreateInput): RuntimeStepDefinition;
   readonly input: TInputContracts;
   readonly output: TOutputContracts;
+  readonly questionResolvers?: QuestionResolverRegistry;
   readonly signals?: readonly SignalDefinition[];
 };
 
@@ -119,6 +122,7 @@ export function baseStep<
       maxRetries: input.maxRetries,
       models: input.models,
       output: input.output,
+      questionResolvers: input.questionResolvers,
       async run(context) {
         const result = await input.run({
           ...context,
@@ -159,6 +163,7 @@ export function authoredStepDefinition<
     output: input.output as TOutputContracts,
     outputs: input.output,
     prompts: input.prompts,
+    questionResolvers: input.questionResolvers,
     runtimeDependencies: input.runtimeDependencies,
     signals: input.signals,
     sideEffects: input.sideEffects,

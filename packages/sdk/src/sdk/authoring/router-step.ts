@@ -94,6 +94,10 @@ export function routerStep<
   const childInputContracts = compatibleContracts(routeEntries, "input") as RouterInputContracts<TRoutes>;
   const inputContracts = (input.input ?? childInputContracts) as unknown as TInputContracts;
   const outputContracts = compatibleContracts(routeEntries, "output") as RouterOutputContracts<TRoutes>;
+  const questionResolvers = Object.assign(
+    {},
+    ...routeEntries.map(([, child]) => child.questionResolvers),
+  );
 
   return authoredStepDefinition({
     description: input.description,
@@ -116,6 +120,7 @@ export function routerStep<
     label: input.label,
     maxRetries: input.maxRetries,
     output: outputContracts,
+    questionResolvers,
   }, (createInput) => {
     const sessions = new Map<string, RouterSession>();
     const childSessions = new Map<string, ChildWorkflowSession>();
@@ -127,6 +132,7 @@ export function routerStep<
       label: input.label,
       maxRetries: input.maxRetries,
       output: outputContracts,
+      questionResolvers,
       async run(context) {
         const scope = {
           emit: context.emit,
@@ -162,6 +168,7 @@ export function routerStep<
             input: child.input,
             model: createInput.model,
             output: child.output,
+            questionResolvers: child.questionResolvers,
             use: context.use,
             workflows: child.workflows,
           });

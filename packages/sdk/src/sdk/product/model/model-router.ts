@@ -230,6 +230,7 @@ export function openAiCompatibleWorker(
   };
 }
 
+/** @deprecated Use `step.delegate()` when OpenCode owns inference and tools. */
 export function opencodeWorker(
   config: OpencodeModelWorkerConfig = {},
 ): ModelWorkerBackend<OpencodeModelWorkerConfig> {
@@ -245,6 +246,7 @@ export function opencodeWorker(
   };
 }
 
+/** @deprecated Use `step.delegate()` when Codex owns inference and tools. */
 export function codexCliWorker(
   config: CodexCliModelWorkerConfig = {},
 ): ModelWorkerBackend<CodexCliModelWorkerConfig> {

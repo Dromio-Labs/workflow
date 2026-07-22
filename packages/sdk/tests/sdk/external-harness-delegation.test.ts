@@ -261,6 +261,60 @@ describe("external harness delegation", () => {
     expect(run?.events?.some((event) => event.type === "hook.resumed")).toBe(true);
     expect(executions).toEqual({ prepare: 1, publish: 1 });
   });
+
+  test("refuses missing required capabilities and records preferred fallback", async () => {
+    const executions = { prepare: 0, publish: 0 };
+    const app = delegatedApp(executions, {
+      capabilities: {
+        preferred: ["subagents"],
+        required: ["browser"],
+      },
+    });
+    const host = await createWorkflowAppHost(app, { storage: { kind: "memory" } });
+    const mcp = createWorkflowControlPlaneMcpProvider({
+      controlPlane: host.controlPlane,
+      toolPrefix: "dromio",
+    });
+    const started = await host.controlPlane.startRun({
+      input: "capability negotiation",
+      runId: "run-delegation-capabilities",
+      workflowId: "delegated-content",
+    });
+    const hook = started.pendingHooks?.[0];
+
+    expect(hook?.input).toMatchObject({
+      capabilities: ["browser", "subagents"],
+      capabilityRequirements: {
+        preferred: ["subagents"],
+        required: ["browser"],
+      },
+    });
+    const refused = await mcp.callTool("dromio.resume_hook", {
+      source: { adapter: "codex", capabilities: [] },
+      token: hook?.token,
+      value: { report: "cannot browse" },
+    });
+    expect(refused.isError).toBe(true);
+    expect(refused.structuredContent).toMatchObject({
+      code: "HANDOFF_CAPABILITY_REQUIRED",
+      error: expect.stringContaining("browser"),
+    });
+    expect((await host.controlPlane.getRun(started.runId)).pendingHooks?.[0]?.token)
+      .toBe(hook?.token);
+
+    const completed = await mcp.callTool("dromio.resume_hook", {
+      source: { adapter: "codex", capabilities: ["browser"] },
+      token: hook?.token,
+      value: { report: "browser-backed result without subagents" },
+    });
+    expect(completed.isError).not.toBe(true);
+    expect(completed.structuredContent).toMatchObject({ run: { status: "completed" } });
+    const run = (completed.structuredContent as {
+      run: { events: Array<{ detail?: unknown; type: string }> };
+    }).run;
+    expect(run.events.find((event) => event.type === "hook.resumed")?.detail)
+      .toMatchObject({ source: { adapter: "codex", capabilities: ["browser"] } });
+  });
 });
 
 function delegatedChildApp() {
@@ -308,7 +362,10 @@ function delegatedChildApp() {
 
 function delegatedApp(
   executions: { prepare: number; publish: number },
-  options: { failPublish?: boolean } = {},
+  options: {
+    capabilities?: string[] | { preferred?: readonly string[]; required?: readonly string[] };
+    failPublish?: boolean;
+  } = {},
 ) {
   const prepare = step({
     id: "content.prepare",
@@ -320,7 +377,7 @@ function delegatedApp(
     },
   });
   const research = step.delegate({
-    capabilities: ["browser", "search"],
+    capabilities: options.capabilities ?? ["browser", "search"],
     context: ({ input }) => ({ brief: input.brief }),
     id: "content.research",
     input: { brief: z.string() },

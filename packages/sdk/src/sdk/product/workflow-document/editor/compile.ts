@@ -207,6 +207,7 @@ function applyWorkflowDocumentMetadataToGraph(
         catalogItemId: item.id,
         childNodes: graphCatalogChildNodes(item, catalog, childWorkflows),
         description: node.description ?? item.description,
+        role: documentNode.role,
       };
     }),
   };
@@ -293,6 +294,7 @@ function graphWorkflowDocumentChildNodes(
         id: branch ? `${branch.id}.${node.id}` : route ? `${route.id}.${node.id}` : node.id,
         label: node.label ?? node.id,
         loop: loops.get(node.id),
+        role: node.role,
       };
     }
     return {
@@ -306,6 +308,7 @@ function graphWorkflowDocumentChildNodes(
       kind: child.kind,
       label: node.label ?? child.label,
       loop: loops.get(node.id),
+      role: node.role,
       output: graphCatalogPorts(child.id, "output", child.outputs),
     };
   });

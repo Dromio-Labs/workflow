@@ -76,7 +76,10 @@ export async function createWorkflowAppHost(
   const controlPlane = createWorkflowControlPlane({
     app,
     auth: options.auth,
-    runtime,
+    // The control plane owns its durable compare-and-swap writes. Giving it
+    // the persistence-wrapped public runtime would write every transition
+    // twice and let equivalent concurrent answers both advance a run.
+    runtime: baseRuntime,
     runtimeStore,
     signals: app.signals,
     triggerStore: options.triggerStore ?? emptyTriggerStore,

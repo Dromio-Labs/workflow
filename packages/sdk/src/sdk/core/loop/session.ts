@@ -89,6 +89,12 @@ export class LoopSession<TUse = unknown, TInput = unknown> {
     return runLoopEffect(sessionOperationEffect("answer", async () => {
       try {
         const question = this.pendingQuestions.find((item) => item.id === input.questionId);
+        const legacyQuestionHook = this.pendingHooks.find((hook) =>
+          hook.kind === "question" && hook.id === input.questionId
+        );
+        if (!question && !legacyQuestionHook) {
+          throw new Error(`Unknown pending question: ${input.questionId}`);
+        }
         const resolution = await this.resolveQuestionAnswer(question, input.value);
         if (resolution && resolution.status !== "accepted") {
           this.emit({
@@ -496,6 +502,7 @@ export class LoopSession<TUse = unknown, TInput = unknown> {
       id: question.id,
       input: question,
       kind: "question",
+      schema: question.answerSchema,
       stepId: step.id,
       ...(question.title ? { title: question.title } : {}),
       token: `question:${this.runId}:${step.id}:${step.attempt}:${question.id}:${questionShapeToken(question)}`,

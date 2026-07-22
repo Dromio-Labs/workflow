@@ -176,7 +176,7 @@ describe("workflow lifecycle authoring", () => {
       .toMatchObject({ attempt: 2 });
   });
 
-  test("wraps the core contract loop with recursively inspectable phases", async () => {
+  test("runs promptedContract as recursively inspectable executable phases", async () => {
     const contractSchema = z.object({
       kind: z.literal("brief"),
       requirements: z.array(z.object({
@@ -242,8 +242,11 @@ describe("workflow lifecycle authoring", () => {
     const waiting = await runtime.start({ prompt: "Write an update." });
 
     expect(waiting.status).toBe("waiting");
-    expect(waiting.pendingQuestions[0]).toMatchObject({ id: "audience" });
-    await waiting.answer({ questionId: "audience", value: "developers" });
+    expect(waiting.pendingQuestions[0]).toMatchObject({ id: "brief.resolve.audience" });
+    await waiting.answer({
+      questionId: waiting.pendingQuestions[0]!.id,
+      value: "developers",
+    });
     await waiting.resume();
     expect(waiting.status).toBe("completed");
     expect(waiting.state.audience).toBe("developers");
@@ -261,13 +264,11 @@ describe("workflow lifecycle authoring", () => {
       "brief.resolve.ask",
       "brief.resolve.merge",
       "brief.resolve.revise",
-      "brief.resolve.rescore",
       "brief.resolve.complete",
-      "brief.resolve.fail",
     ]);
     expect(inspection.document.loops?.[0]).toMatchObject({
       backTo: "resolve",
-      end: "rescore",
+      end: "revise",
       start: "resolve",
     });
     const authoredWorkflow = workflow({
@@ -305,23 +306,31 @@ describe("workflow lifecycle authoring", () => {
       "ask",
       "merge",
       "revise",
-      "rescore",
       "complete",
-      "fail",
     ]);
     expect(authoredWorkflow.graph().nodes[0]?.childNodes?.find((node) => node.id === "resolve")?.loop)
       .toMatchObject({ id: "revision-loop" });
     expect(authoredWorkflow.graph().nodes[0]?.childNodes?.map((node) => node.catalog?.kind)).toEqual([
-      "model",
+      "step",
       "evaluation",
       "gate",
       "question",
       "step",
-      "model",
-      "evaluation",
       "step",
       "step",
     ]);
+    expect(waiting.events.filter((event) => event.type === "step.started").map((event) =>
+      (event.detail as { itemWorkflowStepId?: string } | undefined)?.itemWorkflowStepId
+    ))
+      .toEqual(expect.arrayContaining([
+        "resolve",
+        "assess",
+        "gate",
+        "ask",
+        "merge",
+        "revise",
+        "complete",
+      ]));
 
     let persisted = false;
     const blocked = step.promptedContract({

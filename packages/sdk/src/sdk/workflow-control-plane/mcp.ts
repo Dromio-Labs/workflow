@@ -3,9 +3,13 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import {
   CallToolRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ReadResourceRequestSchema,
   type CallToolResult,
+  type ListResourcesResult,
   type ListToolsResult,
+  type ReadResourceResult,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import type {
@@ -15,6 +19,11 @@ import type {
   WorkflowControlPlane,
   WorkflowRunFilter,
 } from "./types.js";
+import {
+  WORKFLOW_MCP_APP_MIME_TYPE,
+  WORKFLOW_MCP_APP_URI,
+  workflowMcpAppHtml,
+} from "./mcp-app.js";
 
 export type CreateWorkflowControlPlaneMcpProviderInput = {
   auth?: {
@@ -41,7 +50,9 @@ export type WorkflowControlPlaneMcpTool = {
 export type WorkflowControlPlaneMcpProvider = {
   callTool(name: string, args?: unknown): Promise<CallToolResult>;
   fetch(request: Request): Promise<Response>;
+  listResources(): Promise<ListResourcesResult>;
   listTools(): Promise<ListToolsResult>;
+  readResource(uri: string): Promise<ReadResourceResult>;
   server: Server;
   serveStdio(): Promise<void>;
 };
@@ -89,6 +100,12 @@ export function createWorkflowControlPlaneMcpProvider(
     async listTools() {
       return { tools: await listWorkflowTools(input, prefix) };
     },
+    async listResources() {
+      return workflowMcpAppResources();
+    },
+    async readResource(uri) {
+      return readWorkflowMcpAppResource(uri, prefix);
+    },
     server,
     async serveStdio() {
       await server.connect(new StdioServerTransport());
@@ -103,8 +120,12 @@ export const createWorkflowControlPlaneMcpServer = createWorkflowControlPlaneMcp
 function createMcpServer(input: CreateWorkflowControlPlaneMcpProviderInput, prefix: string): Server {
   const server = new Server(
     { name: input.name ?? prefix, version: input.version ?? "0.1.0" },
-    { capabilities: { tools: {} } },
+    { capabilities: { resources: {}, tools: {} } },
   );
+  server.setRequestHandler(ListResourcesRequestSchema, async () => workflowMcpAppResources());
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => (
+    readWorkflowMcpAppResource(request.params.uri, prefix)
+  ));
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: await listWorkflowTools(input, prefix),
   }));
@@ -159,7 +180,17 @@ async function listWorkflowTools(
       properties: { runId: { type: "string" } },
       required: ["runId"],
       type: "object",
-    }, true),
+    }, true, undefined, true),
+    tool(`${prefix}.answer_question`, "Answer one pending workflow question and return the updated run.", {
+      additionalProperties: false,
+      properties: {
+        questionId: { type: "string" },
+        runId: { type: "string" },
+        value: {},
+      },
+      required: ["runId", "questionId", "value"],
+      type: "object",
+    }, false, undefined, true),
     tool(`${prefix}.resume_hook`, "Resume a suspended workflow hook with JSON-compatible output.", {
       additionalProperties: false,
       properties: {
@@ -167,6 +198,7 @@ async function listWorkflowTools(
           additionalProperties: false,
           properties: {
             adapter: { type: "string" },
+            capabilities: { items: { type: "string" }, type: "array" },
             participant: { type: "string" },
           },
           type: "object",
@@ -176,7 +208,7 @@ async function listWorkflowTools(
       },
       required: ["token", "value"],
       type: "object",
-    }),
+    }, false, undefined, true),
   ];
 
   for (const extraTool of input.extraTools ?? []) {
@@ -211,7 +243,18 @@ async function callWorkflowTool(
   if (name === `${prefix}.list_jobs`) return mcpResult({ jobs: await controlPlane.listTriggerJobs(jobFilter(args)) });
   if (name === `${prefix}.get_job`) return mcpResult({ job: await controlPlane.getTriggerJob(requiredString(args, "jobId")) });
   if (name === `${prefix}.list_runs`) return mcpResult({ runs: await controlPlane.listRuns(runFilter(args)) });
-  if (name === `${prefix}.get_run`) return mcpResult({ run: await controlPlane.getRun(requiredString(args, "runId")) });
+  if (name === `${prefix}.get_run`) {
+    const run = await controlPlane.getRun(requiredString(args, "runId"));
+    return mcpResult({ run, workflow: await controlPlane.getWorkflow(run.workflowId) });
+  }
+  if (name === `${prefix}.answer_question`) {
+    return mcpResult({
+      run: await controlPlane.answerQuestion(requiredString(args, "runId"), {
+        questionId: requiredString(args, "questionId"),
+        value: requiredValue(args, "value"),
+      }),
+    });
+  }
   if (name === `${prefix}.resume_hook`) {
     return mcpResult({
       run: await controlPlane.resumeHook({
@@ -257,7 +300,14 @@ function triggerTool(prefix: string, trigger: TriggerDescriptor): Tool {
   );
 }
 
-function tool(name: string, description: string, inputSchema: Tool["inputSchema"], readOnly = false, title?: string): Tool {
+function tool(
+  name: string,
+  description: string,
+  inputSchema: Tool["inputSchema"],
+  readOnly = false,
+  title?: string,
+  app = false,
+): Tool {
   return {
     annotations: {
       destructiveHint: !readOnly,
@@ -266,8 +316,31 @@ function tool(name: string, description: string, inputSchema: Tool["inputSchema"
     },
     description,
     inputSchema,
+    ...(app ? { _meta: { ui: { resourceUri: WORKFLOW_MCP_APP_URI } } } : {}),
     name,
     title,
+  };
+}
+
+function workflowMcpAppResources(): ListResourcesResult {
+  return {
+    resources: [{
+      description: "Interactive durable workflow run inspector and suspension controls.",
+      mimeType: WORKFLOW_MCP_APP_MIME_TYPE,
+      name: "Dromio workflow run",
+      uri: WORKFLOW_MCP_APP_URI,
+    }],
+  };
+}
+
+function readWorkflowMcpAppResource(uri: string, prefix: string): ReadResourceResult {
+  if (uri !== WORKFLOW_MCP_APP_URI) throw new Error(`Unknown MCP resource: ${uri}`);
+  return {
+    contents: [{
+      mimeType: WORKFLOW_MCP_APP_MIME_TYPE,
+      text: workflowMcpAppHtml(prefix),
+      uri: WORKFLOW_MCP_APP_URI,
+    }],
   };
 }
 
@@ -309,7 +382,7 @@ function requiredValue(args: Record<string, unknown>, key: string): unknown {
   return args[key];
 }
 
-function resumeSource(value: unknown): { adapter?: string; participant?: string } | undefined {
+function resumeSource(value: unknown): { adapter?: string; capabilities?: string[]; participant?: string } | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const source = value as Record<string, unknown>;
   const adapter = typeof source.adapter === "string" && source.adapter.trim()
@@ -318,7 +391,13 @@ function resumeSource(value: unknown): { adapter?: string; participant?: string 
   const participant = typeof source.participant === "string" && source.participant.trim()
     ? source.participant.trim()
     : undefined;
-  return adapter || participant ? { adapter, participant } : undefined;
+  const capabilities = Array.isArray(source.capabilities)
+    ? source.capabilities.filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+      .map((item) => item.trim())
+    : undefined;
+  return adapter || participant || capabilities?.length
+    ? { adapter, capabilities, participant }
+    : undefined;
 }
 
 function jobFilter(args: Record<string, unknown>): TriggerJobFilter {

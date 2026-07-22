@@ -50,6 +50,7 @@ export function defaultTraceContext(input: {
 export function questionShapeToken(question: Question) {
   const value = JSON.stringify({
     allowCustom: "allowCustom" in question ? question.allowCustom : undefined,
+    answerSchema: question.answerSchema,
     options: (question.options ?? []).map((option) => ({
       description: option.description,
       label: option.label,
