@@ -114,7 +114,7 @@ export function putWorkflowRun(database: Database, snapshot: StoredWorkflowRunSn
       revision.terminal ? 1 : 0,
     ],
   );
-  if (write.changes > 0) return { accepted: true, snapshot };
+  if (write.changes > 0) return { accepted: true, snapshot, written: true };
   const stored = getWorkflowRun(database, snapshot.runId);
   if (!stored) throw new Error(`Workflow run ${snapshot.runId} disappeared during persistence.`);
   const storedRevision = workflowAppRunSnapshotRevision(stored);
@@ -123,5 +123,6 @@ export function putWorkflowRun(database: Database, snapshot: StoredWorkflowRunSn
       && !isWorkflowAppRunSnapshotNewer(stored, snapshot)
       && areWorkflowAppRunSnapshotsEquivalent(stored, snapshot),
     snapshot: stored,
+    written: false,
   };
 }

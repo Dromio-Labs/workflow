@@ -65,7 +65,7 @@ export function createLiveRunController(input: {
       }
       await applyHookAnswer(run, resumeInput);
       const answerPersistence = await persistRunResult(run);
-      if (!answerPersistence.accepted) return answerPersistence.snapshot;
+      if (!answerPersistence.written) return answerPersistence.snapshot;
       const resumed = await input.runtime.resumeRun(run.runId);
       return persistRun(resumed);
     },
@@ -86,7 +86,7 @@ export function createLiveRunController(input: {
   ): Promise<WorkflowAppRunSnapshot> {
     const answered = await input.runtime.answerQuestion(run.runId, answerInput);
     const answerPersistence = await persistRunResult(answered);
-    if (!answerPersistence.accepted) return answerPersistence.snapshot;
+    if (!answerPersistence.written) return answerPersistence.snapshot;
     const resumed = await input.runtime.resumeRun(answered.runId);
     return persistRun(resumed);
   }
@@ -94,7 +94,7 @@ export function createLiveRunController(input: {
   async function persistRunResult(run: WorkflowAppRun) {
     const snapshot = snapshotWorkflowAppRun(input.app, run);
     const persisted = await input.runtimeStore.putWorkflowRun(snapshot);
-    if (!persisted.accepted) return persisted;
+    if (!persisted.written) return persisted;
     const now = input.clock.now().toISOString();
     await input.runtimeStore.syncSignalWaits({
       now,

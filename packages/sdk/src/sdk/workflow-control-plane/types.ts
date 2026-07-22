@@ -244,6 +244,8 @@ export type StoredWorkflowRunSnapshot = WorkflowAppRunSnapshot;
 export type PutWorkflowRunResult = {
   /** True when the submitted snapshot is current (newly stored or already identical). */
   accepted: boolean;
+  /** True only when this call won the atomic write and changed persisted state. */
+  written: boolean;
   /** The authoritative snapshot after the atomic write attempt. */
   snapshot: StoredWorkflowRunSnapshot;
 };

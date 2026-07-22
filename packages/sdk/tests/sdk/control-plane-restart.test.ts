@@ -122,6 +122,60 @@ describe("workflow control-plane restart rehydration", () => {
     }
   });
 
+  test("lets only the persisted CAS winner resume an equivalent concurrent answer", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "dromio-control-plane-equivalent-answer-"));
+    const dbPath = path.join(directory, "runtime.sqlite");
+    let resumeCalls = 0;
+
+    try {
+      const starter = createHarness(dbPath);
+      const waiting = await starter.controlPlane.startRun({
+        input: "ship it",
+        runId: "run_equivalent_answer",
+        workflowId: "approval",
+      });
+      const stores = synchronizeEquivalentAnswerWrites(
+        createSqliteWorkflowRuntimeStore(dbPath),
+        createSqliteWorkflowRuntimeStore(dbPath),
+      );
+      const countedRuntime = (app: WorkflowApp): WorkflowAppRuntime => {
+        const runtime = createWorkflowAppRuntime(app);
+        return {
+          ...runtime,
+          async resumeRun(runId) {
+            resumeCalls += 1;
+            return await runtime.resumeRun(runId);
+          },
+        };
+      };
+      const first = createHarness(dbPath, countedRuntime, stores[0]);
+      const second = createHarness(dbPath, countedRuntime, stores[1]);
+      await Promise.all([
+        first.controlPlane.getRun(waiting.runId),
+        second.controlPlane.getRun(waiting.runId),
+      ]);
+
+      const results = await Promise.all([
+        first.controlPlane.answerQuestion(waiting.runId, {
+          questionId: "approval",
+          value: "yes",
+        }),
+        second.controlPlane.answerQuestion(waiting.runId, {
+          questionId: "approval",
+          value: "yes",
+        }),
+      ]);
+      const stored = await starter.store.getWorkflowRun(waiting.runId);
+
+      expect(resumeCalls).toBe(1);
+      expect(results.map((result) => result.status).sort()).toEqual(["completed", "waiting"]);
+      expect(stored?.status).toBe("completed");
+      expect(eventCount(stored?.events ?? [], "step.completed", "finish")).toBe(1);
+    } finally {
+      await rm(directory, { force: true, recursive: true });
+    }
+  });
+
   test("resumes a hook token after restart without a run id", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "dromio-control-plane-hook-"));
     const dbPath = path.join(directory, "runtime.sqlite");
@@ -361,6 +415,28 @@ function deferFirstRunWrite(store: WorkflowRuntimeStore): {
       },
     },
   };
+}
+
+function synchronizeEquivalentAnswerWrites(
+  first: WorkflowRuntimeStore,
+  second: WorkflowRuntimeStore,
+): readonly [WorkflowRuntimeStore, WorkflowRuntimeStore] {
+  let attempts = 0;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const wrap = (store: WorkflowRuntimeStore): WorkflowRuntimeStore => ({
+    ...store,
+    async putWorkflowRun(snapshot) {
+      const result = await store.putWorkflowRun(snapshot);
+      if (snapshot.status === "waiting" && snapshot.answers?.approval === "yes") {
+        attempts += 1;
+        if (attempts === 2) release();
+        await gate;
+      }
+      return result;
+    },
+  });
+  return [wrap(first), wrap(second)];
 }
 
 async function withTimeout<Value>(promise: Promise<Value>, message: string): Promise<Value> {
