@@ -82,6 +82,12 @@ try {
       `file:${await findTarball(packageArtifactDir, dependency.name)}`,
     ])),
   );
+  const localPackageOverrides = {
+    "@dromio/protocols": `file:${protocolsTarball}`,
+    "@dromio/workflow-kernel": `file:${workflowKernelTarball}`,
+    "@dromio/workflow-room-protocol": `file:${protocolTarball}`,
+    ...localDependencyTarballs,
+  };
   const consumerDir = path.join(tempRoot, "consumer");
   await mkdir(consumerDir);
   await writeFile(path.join(consumerDir, "package.json"), JSON.stringify({
@@ -98,14 +104,8 @@ try {
       "@opentui/core": "0.2.6",
       "@opentui/solid": "0.2.6",
       "@types/node": "24.13.2",
-      typescript: "5.9.3",
     },
-    overrides: {
-      "@dromio/protocols": `file:${protocolsTarball}`,
-      "@dromio/workflow-kernel": `file:${workflowKernelTarball}`,
-      "@dromio/workflow-room-protocol": `file:${protocolTarball}`,
-      ...localDependencyTarballs,
-    },
+    overrides: localPackageOverrides,
     private: true,
     type: "module",
   }, null, 2));
@@ -138,39 +138,7 @@ try {
   run("node", ["smoke.cjs"], consumerDir);
   await writeFile(
     path.join(consumerDir, "workflow.ts"),
-    [
-      'import { step, workflow } from "@dromio/workflow";',
-      'import { z } from "zod";',
-      '',
-      'const greet = step({',
-      '  id: "greet",',
-      '  input: { name: z.string() },',
-      '  output: { message: z.string() },',
-      '  run: ({ input }) => ({ message: `Hello, ${input.name}!` }),',
-      '});',
-      '',
-      'const greetingWorkflow = workflow({',
-      '  catalog: [greet],',
-      '  document: {',
-      '    edges: [',
-      '      { id: "trigger-to-greet", source: "trigger", target: "greet" },',
-      '      { id: "greet-to-end", source: "greet", target: "end" },',
-      '    ],',
-      '    end: { id: "end", output: { message: { jsonSchema: { type: "string" } } }, type: "result" },',
-      '    id: "greeting-workflow",',
-      '    nodes: [{ catalogItemId: greet.id, id: "greet" }],',
-      '    trigger: { id: "trigger", input: { name: { jsonSchema: { type: "string" } } }, type: "manual" },',
-      '    version: 1,',
-      '  },',
-      '});',
-      '',
-      'const session = await greetingWorkflow.start({ name: "Dromio" });',
-      'if (session.status !== "completed" || session.state.message !== "Hello, Dromio!") {',
-      '  throw new Error(`Unexpected workflow result: ${JSON.stringify(session.state)}`);',
-      '}',
-      'console.log(session.state.message);',
-      '',
-    ].join("\n"),
+    representativeWorkflowSource(),
   );
   await writeFile(path.join(consumerDir, "tsconfig.json"), JSON.stringify({
     compilerOptions: {
@@ -185,12 +153,50 @@ try {
   const tsc = path.join(consumerDir, "node_modules", "typescript", "bin", "tsc");
   run("node", [tsc, "--project", "tsconfig.json"], consumerDir);
   run("bun", ["workflow.ts"], consumerDir);
+  await verifyHeadlessIsolatedTarball(
+    tempRoot,
+    sdkTarball,
+    localPackageOverrides,
+  );
   console.log("Verified @dromio/workflow package tarball.");
 } finally {
   await rm(tempRoot, {
     force: true,
     recursive: true,
   });
+}
+
+async function verifyHeadlessIsolatedTarball(
+  parent: string,
+  sdkTarball: string,
+  overrides: Readonly<Record<string, string>>,
+): Promise<void> {
+  const consumerDir = path.join(parent, "headless-isolated-consumer");
+  await mkdir(consumerDir);
+  await writeFile(path.join(consumerDir, "package.json"), JSON.stringify({
+    dependencies: {
+      "@dromio/workflow": `file:${sdkTarball}`,
+      zod: "4.4.3",
+    },
+    name: "workflow-sdk-headless-isolated-smoke",
+    overrides,
+    private: true,
+    type: "module",
+  }, null, 2));
+  await writeFile(
+    path.join(consumerDir, "headless.mjs"),
+    headlessWorkflowSource(),
+  );
+  run("bun", [
+    "install",
+    "--ignore-scripts",
+    "--linker=isolated",
+    "--omit=peer",
+    "--omit=optional",
+  ], consumerDir);
+  await assertPublishedDependencySpec(consumerDir);
+  run("bun", ["headless.mjs"], consumerDir);
+  console.log("Verified no-hoist headless package graph with the supported Bun runtime.");
 }
 
 async function findTarball(directory: string, packageName: string): Promise<string> {
@@ -225,6 +231,56 @@ async function assertPublishedDependencySpec(consumerDir: string): Promise<void>
       `@dromio/workflow package must depend on a publishable @dromio/workflow-room-protocol version, got ${protocolSpec ?? "missing"}.`,
     );
   }
+  if (sdkPackageJson.dependencies?.["cron-parser"] !== "5.5.0") {
+    throw new Error("@dromio/workflow must own cron-parser@5.5.0 as an exact runtime dependency.");
+  }
+  if (sdkPackageJson.dependencies?.typescript !== "5.9.3") {
+    throw new Error("@dromio/workflow must own typescript@5.9.3 as an exact runtime dependency.");
+  }
+}
+
+function headlessWorkflowSource(): string {
+  return [
+    'import { artifactRefJsonSchema } from "@dromio/workflow/product";',
+    representativeWorkflowSource(),
+    'if (artifactRefJsonSchema.type !== "object") throw new Error("missing product runtime export");',
+  ].join("\n");
+}
+
+function representativeWorkflowSource(): string {
+  return [
+    'import { step, workflow } from "@dromio/workflow";',
+    'import { z } from "zod";',
+    '',
+    'const greet = step({',
+    '  id: "greet",',
+    '  input: { name: z.string() },',
+    '  output: { message: z.string() },',
+    '  run: ({ input }) => ({ message: `Hello, ${input.name}!` }),',
+    '});',
+    '',
+    'const greetingWorkflow = workflow({',
+    '  catalog: [greet],',
+    '  document: {',
+    '    edges: [',
+    '      { id: "trigger-to-greet", source: "trigger", target: "greet" },',
+    '      { id: "greet-to-end", source: "greet", target: "end" },',
+    '    ],',
+    '    end: { id: "end", output: { message: { jsonSchema: { type: "string" } } }, type: "result" },',
+    '    id: "greeting-workflow",',
+    '    nodes: [{ catalogItemId: greet.id, id: "greet" }],',
+    '    trigger: { id: "trigger", input: { name: { jsonSchema: { type: "string" } } }, type: "manual" },',
+    '    version: 1,',
+    '  },',
+    '});',
+    '',
+    'const session = await greetingWorkflow.start({ name: "Dromio" });',
+    'if (session.status !== "completed" || session.state.message !== "Hello, Dromio!") {',
+    '  throw new Error(`Unexpected workflow result: ${JSON.stringify(session.state)}`);',
+    '}',
+    'console.log(session.state.message);',
+    '',
+  ].join("\n");
 }
 
 function run(command: string, args: string[], cwd = process.cwd()): void {

@@ -1,4 +1,4 @@
-import type { ChatMessage } from "@chatshell/response-protocol";
+import type { ChatMessage } from "../../packages/chatshell-response-protocol";
 import { useLayoutEffect } from "react";
 
 import type { ProjectedConversationConfig } from "./ProjectedConversation";

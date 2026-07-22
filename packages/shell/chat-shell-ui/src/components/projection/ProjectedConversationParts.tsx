@@ -1,7 +1,7 @@
 import {
 	type ToolCall,
 	type ToolInput,
-} from "@chatshell/response-protocol";
+} from "../../packages/chatshell-response-protocol";
 import { Icon } from "../ui/Icon";
 import { InlineMediaImage } from "./InlineMediaImage";
 import { InlineMediaVideo } from "./InlineMediaVideo";

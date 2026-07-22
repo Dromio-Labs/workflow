@@ -9,7 +9,7 @@ import {
   type ModelStreamEvent,
   projectStreamEvent,
   type ConversationState,
-} from "@chatshell/response-protocol";
+} from "../packages/chatshell-response-protocol";
 
 type MockTokenStreamOptions = {
   controlPlane: ChatShellControlPlane;

@@ -1,5 +1,5 @@
 import type {CSSProperties, ReactNode} from "react";
-import type {ConversationState} from "@chatshell/response-protocol";
+import type {ConversationState} from "../../packages/chatshell-response-protocol";
 
 import type {
   ChatShellRuntime,

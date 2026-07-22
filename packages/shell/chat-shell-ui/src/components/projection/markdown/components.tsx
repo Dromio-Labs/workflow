@@ -12,6 +12,7 @@ import { renderInlineResponse } from "../ProjectedConversationParts";
 const EXTERNAL_LINK_CLASS_NAME =
 	"font-medium text-brand underline decoration-current underline-offset-2 hover:text-foreground";
 
+/** @internal */
 export function createDromioMarkdownComponents(
 	projection: ProjectedConversationMetadata,
 ): Components {

@@ -6,7 +6,8 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "noEmit": false,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "stripInternal": true
   },
   "include": [
     "src/chat-shell.ts",
