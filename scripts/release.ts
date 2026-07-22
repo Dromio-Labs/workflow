@@ -191,7 +191,11 @@ async function verifyPublicPackage(specifier: string): Promise<void> {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "dromio-workflow-public-"));
   try {
     await writeFile(path.join(temporary, "package.json"), JSON.stringify({
-      devDependencies: { "@types/node": "24.13.2", typescript: "5.9.3" },
+      devDependencies: {
+        "@types/bun": "1.3.14",
+        "@types/node": "24.13.2",
+        typescript: "5.9.3",
+      },
       dependencies: { [canonicalPackageName]: dependencySpecifier, zod: "4.4.3" },
       name: "dromio-workflow-public-verification",
       private: true,
@@ -199,7 +203,15 @@ async function verifyPublicPackage(specifier: string): Promise<void> {
     }, null, 2));
     await writeFile(path.join(temporary, "workflow.ts"), representativeWorkflowSource());
     await writeFile(path.join(temporary, "tsconfig.json"), JSON.stringify({
-      compilerOptions: { module: "NodeNext", moduleResolution: "NodeNext", noEmit: true, strict: true, target: "ES2022" },
+      compilerOptions: {
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        noEmit: true,
+        skipLibCheck: true,
+        strict: true,
+        target: "ES2022",
+        types: ["bun"],
+      },
       include: ["workflow.ts"],
     }, null, 2));
     await installPublicDependencies(temporary);
