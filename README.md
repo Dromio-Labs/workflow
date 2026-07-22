@@ -69,6 +69,11 @@ clean consumer, imports every supported public subpath, and compiles and runs a
 representative workflow. `make release-rehearse` additionally validates the
 dependency order and publication metadata without contacting npm.
 
+The closure packages remain local build and clean-consumer inputs. The public
+release workflow publishes only `@dromio/workflow`; shared Dromio packages are
+versioned and published by their owning repository, so a Workflow release can
+never replace those packages with an older standalone copy.
+
 ## Repository boundary
 
 This repository owns the Workflow authoring package and the tightly coupled
