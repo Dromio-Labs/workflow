@@ -13,7 +13,7 @@
     },
     "packages/execution": {
       "name": "@dromio/execution",
-      "version": "0.1.42",
+      "version": "0.1.43",
     },
     "packages/protocols": {
       "name": "@dromio/protocols",
@@ -141,7 +141,7 @@
     },
     "packages/workflow/kernel": {
       "name": "@dromio/workflow-kernel",
-      "version": "0.1.7",
+      "version": "0.1.8",
       "dependencies": {
         "cron-parser": "5.5.0",
       },
