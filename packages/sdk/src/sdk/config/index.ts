@@ -58,11 +58,8 @@ export interface DromioBrowserCapabilitySpec {
     readonly recoveryDirectory?: string;
   };
   readonly resources?: {
-    readonly applicationId: string;
     readonly databasePath: string;
-    readonly profileResourceId: string;
-    readonly tenantId: string;
-    readonly userId: string;
+    readonly profileNamespace: string;
   };
 }
 
@@ -357,11 +354,31 @@ function registeredDefaultModelId(modelId: string): string {
 export function browser(
   options: Omit<DromioBrowserCapabilitySpec, "kind">,
 ): DromioBrowserCapabilitySpec {
+  if (options.resources) {
+    assertBrowserResourceSettings(options.resources);
+  }
   const kinds = options.plugins?.map(({ kind }) => kind) ?? [];
   if (new Set(kinds).size !== kinds.length) {
     throw new Error("A browser capability cannot declare the same plugin more than once.");
   }
   return { ...options, kind: "capability.browser" };
+}
+
+function assertBrowserResourceSettings(resources: Readonly<Record<string, unknown>>): void {
+  const allowedKeys = new Set(["databasePath", "profileNamespace"]);
+  const unsupportedKeys = Object.keys(resources)
+    .filter((key) => !allowedKeys.has(key))
+    .sort();
+  if (unsupportedKeys.length > 0) {
+    throw new Error(
+      `Browser resources only accept databasePath and profileNamespace; unsupported fields: ${unsupportedKeys.join(", ")}.`,
+    );
+  }
+  for (const key of allowedKeys) {
+    if (typeof resources[key] !== "string" || resources[key].trim().length === 0) {
+      throw new Error(`Browser resources require a non-empty ${key}.`);
+    }
+  }
 }
 
 export function webShell(options: { readonly shellId?: string } = {}): DromioShellSpec {

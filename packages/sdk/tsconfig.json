@@ -72,6 +72,9 @@
       "@dromio/workflow/core": [
         "src/sdk/core/index.ts"
       ],
+      "@dromio/workflow/config": [
+        "src/sdk/config/index.ts"
+      ],
       "@dromio/workflow/distribution": [
         "src/sdk/distribution/index.ts"
       ],
