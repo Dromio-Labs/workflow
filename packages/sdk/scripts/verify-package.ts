@@ -94,6 +94,9 @@ try {
     },
     name: "workflow-sdk-package-smoke",
     devDependencies: {
+      "@modelcontextprotocol/sdk": "1.29.0",
+      "@opentui/core": "0.2.6",
+      "@opentui/solid": "0.2.6",
       "@types/node": "24.13.2",
       typescript: "5.9.3",
     },

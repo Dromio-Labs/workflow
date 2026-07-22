@@ -6,6 +6,25 @@ import {
 import { assertPackedPackageRuntimePayload } from "./package-payload.js";
 
 describe("Workflow release ownership", () => {
+  test("keeps MCP and terminal UI integrations optional in headless installs", async () => {
+    const manifest = await Bun.file(new URL("../packages/sdk/package.json", import.meta.url)).json() as {
+      dependencies?: Record<string, string>;
+      exports?: Record<string, unknown>;
+      peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+    };
+    const optionalIntegrations = [
+      "@modelcontextprotocol/sdk",
+      "@opentui/core",
+      "@opentui/solid",
+    ];
+
+    for (const name of optionalIntegrations) {
+      expect(manifest.dependencies?.[name]).toBeUndefined();
+      expect(manifest.peerDependenciesMeta?.[name]?.optional).toBe(true);
+    }
+    expect(manifest.exports?.["./workflow-control-plane/mcp"]).toBeDefined();
+  });
+
   test("publishes only the canonical Workflow package from the build closure", () => {
     const closure = [
       { name: "@dromio/protocols", version: "0.2.0" },

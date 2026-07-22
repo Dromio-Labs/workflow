@@ -17,6 +17,7 @@ const publicEntrypoints = [
   "src/sdk/workflow-control-plane/index.ts",
   "src/sdk/workflow-control-plane/control-plane.ts",
   "src/sdk/workflow-control-plane/http.ts",
+  "src/sdk/workflow-control-plane/mcp.ts",
   "src/sdk/workflow-control-plane/in-memory-signal-store.ts",
   "src/sdk/workflow-control-plane/json-trigger-store.ts",
   "src/sdk/workflow-control-plane/runtime-store-contracts.ts",

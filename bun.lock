@@ -37,7 +37,7 @@
     },
     "packages/sdk": {
       "name": "@dromio/workflow",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "dependencies": {
         "@dromio/chat-shell-ui": "workspace:*",
         "@dromio/execution": "workspace:*",
@@ -50,9 +50,6 @@
         "@json-render/core": "^0.19.0",
         "@json-render/react": "^0.19.0",
         "@kitlangton/merman": "0.1.1",
-        "@modelcontextprotocol/sdk": "^1.18.0",
-        "@opentui/core": "0.2.6",
-        "@opentui/solid": "0.2.6",
         "ajv": "8.18.0",
         "effect": "3.21.2",
         "react-resizable-panels": "^4.12.1",
@@ -61,6 +58,9 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@modelcontextprotocol/sdk": "1.29.0",
+        "@opentui/core": "0.2.6",
+        "@opentui/solid": "0.2.6",
         "@types/babel__core": "7.20.5",
         "@types/bun": "latest",
         "@types/node": "latest",
@@ -71,9 +71,17 @@
         "typescript": "^5.9.3",
       },
       "peerDependencies": {
+        "@modelcontextprotocol/sdk": "^1.29.0",
+        "@opentui/core": "0.2.6",
+        "@opentui/solid": "0.2.6",
         "react": "^18.3.0 || ^19.0.0",
         "react-dom": "^18.3.0 || ^19.0.0",
       },
+      "optionalPeers": [
+        "@modelcontextprotocol/sdk",
+        "@opentui/core",
+        "@opentui/solid",
+      ],
     },
     "packages/shell/chat-shell-ui": {
       "name": "@dromio/chat-shell-ui",
