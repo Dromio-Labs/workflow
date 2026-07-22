@@ -1,5 +1,7 @@
-import type {
-  EventPayload,
+import {
+  assertHookOutput,
+  HookOutputValidationError,
+  type EventPayload,
 } from "../core/index.js";
 import {
   snapshotWorkflowAppRun,
@@ -58,6 +60,10 @@ export function createLiveRunController(input: {
     readRun,
     async resumeHook(resumeInput) {
       const run = await ensureLiveRun(runIdFromHookToken(resumeInput.token, input.error));
+      const durableSession = run.session as WorkflowAppSession & Partial<DurableHookAnswerSession>;
+      if (durableSession.consumedHookTokens?.has(resumeInput.token)) {
+        return readRun(run.runId);
+      }
       const hook = run.session.pendingHooks?.find((item) => item.token === resumeInput.token);
       if (!hook) throw input.error("HOOK_NOT_FOUND", "Hook token not found.", 404);
       if (hook.kind === "question") {
@@ -179,11 +185,20 @@ export function createLiveRunController(input: {
     if (session.consumedHookTokens.has(resumeInput.token)) return;
     const hook = run.session.pendingHooks?.find((item) => item.token === resumeInput.token);
     if (!hook) throw input.error("HOOK_NOT_FOUND", "Hook token not found.", 404);
+    try {
+      assertHookOutput(hook, resumeInput.value);
+    } catch (error) {
+      if (error instanceof HookOutputValidationError) {
+        throw input.error("HOOK_OUTPUT_VALIDATION_FAILED", error.message, 422);
+      }
+      throw error;
+    }
     session.hookAnswers[resumeInput.token] = resumeInput.value;
     session.consumedHookTokens.add(resumeInput.token);
     session.emit({
       detail: {
         hook,
+        ...(resumeInput.source ? { source: resumeInput.source } : {}),
         value: resumeInput.value,
       },
       message: `Resumed hook ${hook.id}.`,

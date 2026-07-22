@@ -235,6 +235,245 @@ describe("root workflow authoring", () => {
     expect(session.pendingHooks[0]!.token).toContain(":2:");
   });
 
+  test("delegates typed work through a durable handoff and preserves correction", async () => {
+    const research = step.delegate({
+      artifacts: ({ input }) => [{
+        artifactId: "brief-1",
+        kind: "brief",
+        title: input.topic,
+        uri: "artifact://brief-1",
+      }],
+      capabilities: ["browser", "search", "future-capability"],
+      context: ({ input }) => ({ locale: "en-GB", topic: input.topic }),
+      id: "research.competitors",
+      input: { topic: z.string() },
+      instructions: ({ input }) => `Research competitors for ${input.topic}.`,
+      output: { report: z.string().min(3) },
+      summary: ({ input }) => `Research ${input.topic}`,
+      title: "Competitor research",
+    });
+    const session = await loop({
+      id: "delegation-test",
+      steps: [research.create({ stepId: "research" })],
+    }).start({ topic: "durable workflows" }, { runId: "run-delegation" });
+
+    expect(research.kind).toBe("delegate");
+    expect(research.sideEffects).toEqual(["external.harness.delegation"]);
+    expect(session.status).toBe("waiting");
+    expect(session.pendingHooks[0]).toMatchObject({
+      id: "research.competitors",
+      input: {
+        artifacts: [{ artifactId: "brief-1", kind: "brief" }],
+        attempt: 1,
+        capabilities: ["browser", "search", "future-capability"],
+        context: { locale: "en-GB", topic: "durable workflows" },
+        instructions: "Research competitors for durable workflows.",
+        outputSchema: {
+          additionalProperties: false,
+          required: ["report"],
+          type: "object",
+        },
+        runId: "run-delegation",
+        stepId: "research",
+        summary: "Research durable workflows",
+        title: "Competitor research",
+        workflowId: "delegation-test",
+      },
+      kind: "handoff_requested",
+      schema: {
+        additionalProperties: false,
+        required: ["report"],
+        type: "object",
+      },
+      title: "Competitor research",
+      token: "hook:run-delegation:research:1:0:research_competitors",
+    });
+    const token = session.pendingHooks[0]!.token;
+
+    await expect(session.resumeHook({ token, value: { report: 1 } })).rejects.toThrow(
+      "output does not match its schema",
+    );
+    expect(session.status).toBe("waiting");
+    expect(session.pendingHooks[0]?.token).toBe(token);
+    expect(session.consumedHookTokens.has(token)).toBe(false);
+
+    await session.resumeHook({ token, value: { report: "complete" } });
+
+    expect(session.status).toBe("completed");
+    expect(session.state.report).toBe("complete");
+  });
+
+  test("composes static delegation with approval and signal waits", async () => {
+    const indexed = defineSignal({
+      correlation: z.object({ report: z.string() }),
+      id: "content.indexed",
+      payload: z.object({ url: z.string().url() }),
+      title: "Content indexed",
+    });
+    const delegate = step.delegate({
+      id: "content.delegate-static",
+      input: { request: z.string() },
+      instructions: "Draft the requested article.",
+      output: { report: z.string() },
+    });
+    const approve = step.approval({
+      decision: z.enum(["approve", "reject"]),
+      id: "content.approve",
+      input: { report: z.string() },
+      mapDecision: ({ decision }) => ({ approved: decision === "approve" }),
+      output: { approved: z.boolean() },
+      reject: ({ decision }) => decision === "reject" ? "Publishing rejected." : undefined,
+      request: ({ input }) => ({ report: input.report }),
+      title: "Approve draft",
+    });
+    const waitForIndex = step.waitFor({
+      correlation: ({ input }) => ({ report: input.report }),
+      id: "content.wait-for-index",
+      input: { report: z.string() },
+      signal: indexed,
+    });
+    const session = await loop({
+      id: "delegation-approval-signal",
+      steps: [
+        delegate.create({ stepId: "delegate" }),
+        approve.create({ stepId: "approve" }),
+        waitForIndex.create({ stepId: "wait-for-index" }),
+      ],
+    }).start({ request: "Durable delegation" }, { runId: "run-composed-delegation" });
+
+    const delegateHook = session.pendingHooks[0]!;
+    expect(delegateHook).toMatchObject({
+      input: {
+        attempt: 1,
+        capabilities: [],
+        instructions: "Draft the requested article.",
+        outputSchema: { required: ["report"], type: "object" },
+        runId: "run-composed-delegation",
+        stepId: "delegate",
+        workflowId: "delegation-approval-signal",
+      },
+      kind: "handoff_requested",
+    });
+    const staticHandoff = delegateHook.input as Record<string, unknown>;
+    expect("artifacts" in staticHandoff).toBe(false);
+    expect("context" in staticHandoff).toBe(false);
+    expect("summary" in staticHandoff).toBe(false);
+    expect("title" in staticHandoff).toBe(false);
+
+    await session.resumeHook({ token: delegateHook.token, value: { report: "Final draft" } });
+    const approvalHook = session.pendingHooks[0]!;
+    expect(approvalHook).toMatchObject({ kind: "approval", title: "Approve draft" });
+
+    await session.resumeHook({ token: approvalHook.token, value: "approve" });
+    const signalHook = session.pendingHooks[0]!;
+    expect(signalHook).toMatchObject({
+      input: { correlation: { report: "Final draft" }, signalId: "content.indexed" },
+      kind: "signal",
+    });
+
+    await session.resumeHook({
+      token: signalHook.token,
+      value: {
+        occurrenceId: "occ-indexed",
+        occurredAt: "2026-07-21T20:00:00.000Z",
+        payload: { url: "https://example.com/final-draft" },
+      },
+    });
+
+    expect(session.status).toBe("completed");
+    expect(session.state).toMatchObject({
+      approved: true,
+      payload: { url: "https://example.com/final-draft" },
+      report: "Final draft",
+    });
+  });
+
+  test("preserves delegated child-workflow identity and resumes the child hook", async () => {
+    const delegate = step.delegate({
+      id: "child.delegate",
+      input: { request: z.string() },
+      instructions: ({ input }) => input.request,
+      output: { report: z.string() },
+    });
+    const child = workflow({
+      catalog: [delegate],
+      document: {
+        edges: [
+          { id: "trigger-to-delegate", source: "trigger", target: "delegate" },
+          { id: "delegate-to-end", source: "delegate", target: "end" },
+        ],
+        end: { id: "end", output: { report: { jsonSchema: { type: "string" } } }, type: "result" },
+        id: "delegated-child",
+        nodes: [{ catalogItemId: delegate.id, id: "delegate" }],
+        trigger: { id: "trigger", input: { request: { jsonSchema: { type: "string" } } }, type: "manual" },
+        version: 1,
+      },
+      input: { request: z.string() },
+      output: { report: z.string() },
+    });
+    const nested = step.workflow({ id: "parent.child", workflow: child });
+    const session = await loop({
+      id: "delegated-parent",
+      steps: [nested.create({ stepId: "child" })],
+    }).start({ request: "Investigate" }, { runId: "run-parent" });
+    const hook = session.pendingHooks[0]!;
+    const handoff = hook.input as { runId: string; stepId: string; workflowId: string };
+
+    expect(session.status).toBe("waiting");
+    expect(hook.kind).toBe("handoff_requested");
+    expect(hook.token).toStartWith("hook:run-parent:child:child:");
+    expect(handoff).toMatchObject({
+      stepId: "delegate",
+      workflowId: "delegated-child",
+    });
+    expect(handoff.runId).not.toBe(session.runId);
+
+    await session.resumeHook({ token: hook.token, value: { report: "child result" } });
+
+    expect(session.status).toBe("completed");
+    expect(session.state.report).toBe("child result");
+  });
+
+  test("creates a fresh delegated handoff for each workflow loop iteration", async () => {
+    const revise = step.delegate({
+      id: "draft.revise",
+      input: { prompt: z.string() },
+      instructions: ({ input }) => `Revise ${input.prompt}`,
+      output: { report: z.string() },
+    });
+    const gate = step({
+      id: "draft.gate",
+      input: { report: z.string() },
+      output: {},
+      run({ input }) {
+        return input.report === "revise" ? goto("revise") : {};
+      },
+    });
+    const session = await loop({
+      id: "delegation-loop",
+      steps: [
+        revise.create({ stepId: "revise" }),
+        gate.create({ stepId: "gate" }),
+      ],
+    }).start({ prompt: "the draft" }, { runId: "run-delegation-loop" });
+    const firstToken = session.pendingHooks[0]!.token;
+
+    await session.resumeHook({ token: firstToken, value: { report: "revise" } });
+    const secondToken = session.pendingHooks[0]!.token;
+
+    expect(session.status).toBe("waiting");
+    expect(secondToken).not.toBe(firstToken);
+    expect(secondToken).toContain(":2:");
+
+    await session.resumeHook({ token: secondToken, value: { report: "final" } });
+
+    expect(session.status).toBe("completed");
+    expect(session.state.report).toBe("final");
+    expect(session.events.filter((event) =>
+      event.type === "step.completed" && event.stepId === "revise"
+    )).toHaveLength(2);
+  });
+
   test("runs step.model as exactly one schema-constrained model operation", async () => {
     const calls: string[] = [];
     const worker: ModelWorkerPort = {

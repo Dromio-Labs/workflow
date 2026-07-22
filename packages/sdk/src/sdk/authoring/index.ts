@@ -13,6 +13,12 @@ export {
   type StepFileArtifactInput,
 } from "./artifacts.js";
 export {
+  delegateStep,
+  type AuthoredDelegateStepInput,
+  type DelegateHandoffInput,
+  type DelegateValueSource,
+} from "./delegate-step.js";
+export {
   workflowApp,
   runWorkflowCli,
   runWorkflowGui,
@@ -122,6 +128,7 @@ export {
 } from "./signal.js";
 import { askStep } from "./ask-step.js";
 import { approvalStep } from "./approval-step.js";
+import { delegateStep } from "./delegate-step.js";
 import { modelStep } from "./model-step.js";
 import { promptedContractStep } from "./prompted-contract-step.js";
 import { routerStep } from "./router-step.js";
@@ -137,6 +144,7 @@ import { sleepStep } from "./sleep-step.js";
 export const step = Object.assign(baseStep, {
   approval: approvalStep,
   ask: askStep,
+  delegate: delegateStep,
   evaluate: evaluateStep,
   fork: forkStep,
   forEach: forEachStep,

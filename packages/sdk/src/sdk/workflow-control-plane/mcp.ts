@@ -62,7 +62,7 @@ export function createWorkflowControlPlaneMcpProvider(
       try {
         return await callWorkflowTool(input, prefix, name, objectInput(args));
       } catch (error) {
-        return mcpResult({ error: error instanceof Error ? error.message : String(error) }, true);
+        return mcpErrorResult(error);
       }
     },
     async fetch(request) {
@@ -112,7 +112,7 @@ function createMcpServer(input: CreateWorkflowControlPlaneMcpProviderInput, pref
     try {
       return await callWorkflowTool(input, prefix, request.params.name, objectInput(request.params.arguments));
     } catch (error) {
-      return mcpResult({ error: error instanceof Error ? error.message : String(error) }, true);
+      return mcpErrorResult(error);
     }
   });
   return server;
@@ -160,6 +160,23 @@ async function listWorkflowTools(
       required: ["runId"],
       type: "object",
     }, true),
+    tool(`${prefix}.resume_hook`, "Resume a suspended workflow hook with JSON-compatible output.", {
+      additionalProperties: false,
+      properties: {
+        source: {
+          additionalProperties: false,
+          properties: {
+            adapter: { type: "string" },
+            participant: { type: "string" },
+          },
+          type: "object",
+        },
+        token: { type: "string" },
+        value: {},
+      },
+      required: ["token", "value"],
+      type: "object",
+    }),
   ];
 
   for (const extraTool of input.extraTools ?? []) {
@@ -195,6 +212,15 @@ async function callWorkflowTool(
   if (name === `${prefix}.get_job`) return mcpResult({ job: await controlPlane.getTriggerJob(requiredString(args, "jobId")) });
   if (name === `${prefix}.list_runs`) return mcpResult({ runs: await controlPlane.listRuns(runFilter(args)) });
   if (name === `${prefix}.get_run`) return mcpResult({ run: await controlPlane.getRun(requiredString(args, "runId")) });
+  if (name === `${prefix}.resume_hook`) {
+    return mcpResult({
+      run: await controlPlane.resumeHook({
+        source: resumeSource(args.source),
+        token: requiredString(args, "token"),
+        value: requiredValue(args, "value"),
+      }),
+    });
+  }
   if (name === `${prefix}.fire_trigger`) {
     return mcpResult(await enqueueTrigger(input, requiredString(args, "triggerId"), args.input, args.idempotencyKey));
   }
@@ -257,6 +283,14 @@ function mcpResult(data: Record<string, unknown>, isError = false): CallToolResu
   };
 }
 
+function mcpErrorResult(error: unknown): CallToolResult {
+  const candidate = error as { code?: unknown; message?: unknown } | undefined;
+  return mcpResult({
+    ...(typeof candidate?.code === "string" ? { code: candidate.code } : {}),
+    error: error instanceof Error ? error.message : String(error),
+  }, true);
+}
+
 function objectInput(value: unknown): Record<string, unknown> {
   if (value && typeof value === "object" && !Array.isArray(value)) return value as Record<string, unknown>;
   return {};
@@ -266,6 +300,25 @@ function requiredString(args: Record<string, unknown>, key: string): string {
   const value = args[key];
   if (typeof value !== "string" || !value.trim()) throw new Error(`MCP tool requires string '${key}'.`);
   return value;
+}
+
+function requiredValue(args: Record<string, unknown>, key: string): unknown {
+  if (!Object.prototype.hasOwnProperty.call(args, key) || args[key] === undefined) {
+    throw new Error(`MCP tool requires JSON-compatible '${key}'.`);
+  }
+  return args[key];
+}
+
+function resumeSource(value: unknown): { adapter?: string; participant?: string } | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const source = value as Record<string, unknown>;
+  const adapter = typeof source.adapter === "string" && source.adapter.trim()
+    ? source.adapter.trim()
+    : undefined;
+  const participant = typeof source.participant === "string" && source.participant.trim()
+    ? source.participant.trim()
+    : undefined;
+  return adapter || participant ? { adapter, participant } : undefined;
 }
 
 function jobFilter(args: Record<string, unknown>): TriggerJobFilter {
