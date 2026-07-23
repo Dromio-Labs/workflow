@@ -76,8 +76,12 @@ export function createWorkflowCliRenderer(
     },
     complete(input) {
       stopSpinner(input.stdout, spinner);
-      const status = input.run.status === "completed" ? "Completed" : "Failed";
-      const statusText = input.run.status === "completed" ? color.green(status) : color.red(status);
+      const status = runStatusLabel(input.run.status);
+      const statusText = input.run.status === "completed"
+        ? color.green(status)
+        : input.run.status === "waiting"
+          ? color.yellow(status)
+          : color.red(status);
       write(input.stdout, `\n${color.bold(statusText)} ${color.cyan(input.workflowId)}${showTimings ? ` ${color.dim(`in ${formatMs(input.durationMs)}`)}` : ""}\n`);
       const formatted = input.formattedResult.trim();
       if (formatted) write(input.stdout, `\n${formatted}\n`);
@@ -163,6 +167,12 @@ export function createWorkflowCliRenderer(
       startSpinner(stdout, spinner, color, numberedStepLabel(activeStepId, stepNumberById, stepLabelById));
     },
   };
+}
+
+function runStatusLabel(status: string): string {
+  if (status === "completed") return "Completed";
+  if (status === "waiting") return "Waiting";
+  return "Failed";
 }
 
 function startSpinner(
