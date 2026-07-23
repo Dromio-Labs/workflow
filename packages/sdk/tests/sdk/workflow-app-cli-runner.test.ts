@@ -144,6 +144,24 @@ describe("workflow app CLI runner", () => {
     expect(output).toContain("publish failed");
   });
 
+  test("renders a durable suspension as waiting instead of failed", async () => {
+    const stdout = memoryWritable();
+    const stderr = memoryWritable();
+    const result = await runWorkflowAppCliResult(questionCli(), {
+      argv: ["ship"],
+      interactive: false,
+      stderr: stderr.stream,
+      stdout: stdout.stream,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.run?.status).toBe("waiting");
+    const output = stripAnsi(stdout.read());
+    expect(output).toContain("Waiting demo.question");
+    expect(output).not.toContain("Failed demo.question");
+    expect(stderr.read()).toBe("");
+  });
+
   test("answers interactive questions and resumes the compact workflow", async () => {
     const input = new PassThrough() as PassThrough & { isTTY?: boolean };
     const output = new PassThrough() as PassThrough & { isTTY?: boolean };
