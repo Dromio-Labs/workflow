@@ -17,30 +17,40 @@ import type {
 import { z } from "zod";
 
 describe("workflow control-plane MCP provider", () => {
-  test("advertises a stable MCP App resource while preserving structured fallback data", async () => {
+  test("advertises one run-view tool while keeping mutations in the existing MCP App", async () => {
     const provider = createWorkflowControlPlaneMcpProvider({
       controlPlane: mockControlPlane(),
       toolPrefix: "dromio",
     });
     const resource = (await provider.listResources()).resources[0];
     const html = (await provider.readResource(resource!.uri)).contents[0];
-    const getRun = (await provider.listTools()).tools.find((item) => item.name === "dromio.get_run");
+    const tools = (await provider.listTools()).tools;
+    const getRun = tools.find((item) => item.name === "dromio.get_run");
+    const answerQuestion = tools.find((item) => item.name === "dromio.answer_question");
+    const resumeHook = tools.find((item) => item.name === "dromio.resume_hook");
 
     expect(resource).toMatchObject({
       mimeType: "text/html;profile=mcp-app",
       uri: "ui://dromio/workflow-run",
     });
     expect(getRun?._meta).toEqual({ ui: { resourceUri: "ui://dromio/workflow-run" } });
+    expect(answerQuestion?._meta).toBeUndefined();
+    expect(resumeHook?._meta).toBeUndefined();
     expect(html && "text" in html ? html.text : "").toContain('method==="ui/notifications/tool-result"');
     expect(html && "text" in html ? html.text : "").toContain('call("resume_hook"');
     expect(html && "text" in html ? html.text : "").toContain('call("answer_question"');
     expect(html && "text" in html ? html.text : "").toContain('call("get_run"');
+    expect(html && "text" in html ? html.text : "").toContain('name:prefix+".get_run"');
+    expect(html && "text" in html ? html.text : "").toContain("schedulePoll()");
+    expect(html && "text" in html ? html.text : "").toContain('terminal=new Set(["completed","failed","cancelled","exhausted"])');
     expect(html && "text" in html ? html.text : "").toContain('id="approve"');
     expect(html && "text" in html ? html.text : "").toContain('id="reject"');
     expect(html && "text" in html ? html.text : "").toContain('aria-label="Workflow graph"');
     expect(html && "text" in html ? html.text : "").toContain('id="question-actions"');
     expect(html && "text" in html ? html.text : "").toContain("prefers-reduced-motion:reduce");
     expect(html && "text" in html ? html.text : "").toContain("handoff_requested");
+    expect(html && "text" in html ? html.text : "").toContain('aria-live="polite"');
+    expect(html && "text" in html ? html.text : "").toContain('typeof run.result==="string"');
     expect(html && "text" in html ? html.text : "").toContain("failed");
 
     const fallback = await provider.callTool("dromio.get_run", { runId: "run-mcp" });

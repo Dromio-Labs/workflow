@@ -190,7 +190,7 @@ async function listWorkflowTools(
       },
       required: ["runId", "questionId", "value"],
       type: "object",
-    }, false, undefined, true),
+    }),
     tool(`${prefix}.resume_hook`, "Resume a suspended workflow hook with JSON-compatible output.", {
       additionalProperties: false,
       properties: {
@@ -208,7 +208,7 @@ async function listWorkflowTools(
       },
       required: ["token", "value"],
       type: "object",
-    }, false, undefined, true),
+    }),
   ];
 
   for (const extraTool of input.extraTools ?? []) {

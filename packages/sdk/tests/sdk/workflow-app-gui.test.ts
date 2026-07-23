@@ -76,6 +76,8 @@ describe("workflow app GUI", () => {
       expect(css).toContain(".node-detail-card");
       expect(css).toContain(".workflow-initial-state");
       expect(css).toContain(".artifact-drop-zone");
+      expect(css).toContain(".question-fieldset");
+      expect(css).toContain("#question-custom:focus-visible");
       expect(css).toContain("height: 29px");
       expect(css).toContain("button:disabled");
       expect(css).toContain('.activity-toggle-button[aria-pressed="true"]');
@@ -94,6 +96,7 @@ describe("workflow app GUI", () => {
       expect(shellBody).toContain("json-render-trigger-form");
       expect(shellBody).toContain("structured-run-form");
       expect(shellBody).toContain("artifact-drop-zone");
+      expect(shellBody).toContain("question-fieldset");
       const scriptBody = await script.text();
       expect(scriptBody).toContain("renderCanvas");
       expect(scriptBody).toContain("followLatestActivity");
@@ -105,6 +108,7 @@ describe("workflow app GUI", () => {
       expect(scriptBody).toContain("structuredRunSubmit.disabled");
       expect(scriptBody).toContain("pollWaitingRun");
       expect(scriptBody).toContain('fetch(`/api/runs/${encodeURIComponent(run.runId)}`)');
+      expect(scriptBody).toContain("questionKey === renderedQuestionKey");
       expect(scriptBody).toContain('setTerminalNodeStatus("trigger", "completed", currentTrigger().id)');
       expect(scriptBody).toContain('sourceKind === "trigger" && !sourceStatus');
       expect(scriptBody).toContain('event.target.closest?.(".node-detail-card")');

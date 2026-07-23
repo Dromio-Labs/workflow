@@ -225,8 +225,10 @@ function Workspace({
               <button id="artifact-run-submit" className="artifact-run-submit" type="submit">Run workflow</button>
             </form>
             <form id="question-form" className="question-form" hidden>
-              <div id="question-title" className="question-title" />
-              <div id="question-options" className="question-options" />
+              <fieldset className="question-fieldset">
+                <legend id="question-title" className="question-title" />
+                <div id="question-options" className="question-options" />
+              </fieldset>
               <input id="question-custom" aria-label="Custom answer" placeholder="Or type a custom answer" />
               <button type="submit">Continue</button>
             </form>

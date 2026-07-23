@@ -35,6 +35,7 @@ const questionForm = byId("question-form");
 let followLatestActivity = true;
 let inspectorPointerScrolling = false;
 let inspectorScrollIntent = false;
+let renderedQuestionKey;
 let syncingInspectorScroll = false;
 let waitingRunPollTimer;
 const workflowById = new Map(payload.workflows.map((workflow) => [workflow.id, workflow]));
@@ -205,6 +206,7 @@ function syncTriggerComposer() {
   structuredRunForm.hidden = !visible || (input.kind !== "json-render" && input.kind !== "questions");
   artifactRunForm.hidden = !visible || input.kind !== "artifact";
   questionForm.hidden = true;
+  renderedQuestionKey = undefined;
   runInput.value = typeof state.inputDrafts.get(currentTriggerKey()) === "string" ? state.inputDrafts.get(currentTriggerKey()) : "";
   runInput.placeholder = input.kind === "prompt" && input.placeholder ? input.placeholder : "Enter the prompt for this workflow";
   triggerLabel.textContent = trigger.label;
@@ -691,6 +693,9 @@ function renderRunState() {
 }
 
 function renderQuestion(question) {
+  const questionKey = JSON.stringify(question);
+  if (questionKey === renderedQuestionKey && !questionForm.hidden) return;
+  renderedQuestionKey = questionKey;
   runDock.hidden = false;
   runForm.hidden = true;
   questionForm.hidden = false;
