@@ -44,7 +44,9 @@ export function createOpenAiCompatibleChatModel(
         onEvent: input.onEvent,
         operation: input.operation,
         provider: resolved.provider,
+        signal: input.signal,
         setupErrorMessage: input.setupErrorMessage ?? ((cause) => `${input.operation} failed: ${cause}`),
+        timeoutMs: input.timeoutMs ?? resolved.timeoutMs,
         trace: input.trace,
       });
     },

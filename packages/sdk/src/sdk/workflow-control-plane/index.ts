@@ -64,9 +64,17 @@ export {
 } from "./worker.js";
 export { runSignalDeliveryPass } from "./signal-worker.js";
 export { createInMemorySignalStoreCapabilities } from "./in-memory-signal-store.js";
-export { proveSignalRuntimeStoreConformance } from "./runtime-store-conformance.js";
+export {
+  proveConditionalRuntimeStoreConformance,
+  proveSignalRuntimeStoreConformance,
+} from "./runtime-store-conformance.js";
 export { CanonicalTriggerExecutionFacade } from "./canonical-trigger-facade.js";
 
+export type {
+  DatasetCommitCondition,
+  DatasetCommitRowsInput,
+  DatasetCommitRowsResult,
+} from "./dataset-commit-contracts.js";
 export type {
   AuthTokenVerifier,
   AuthorizeWorkflowControlPlaneInput,
@@ -102,6 +110,7 @@ export type {
   StoredArtifactContent,
   StoredWorkflowRunSnapshot,
   PutArtifactContentInput,
+  PutArtifactContentIfAbsentResult,
   TriggerAuthDescriptor,
   TriggerDescriptor,
   TriggerInputDescriptor,
@@ -126,6 +135,7 @@ export type {
   InMemorySignalStoreSnapshot,
 } from "./in-memory-signal-store.js";
 export type { SignalRuntimeStoreConformanceProof } from "./runtime-store-conformance.js";
+export type { ConditionalRuntimeStoreConformanceProof } from "./runtime-store-conformance.js";
 export type {
   CreateWorkflowControlPlaneHttpAdapterInput,
   WorkflowControlPlaneHttpAdapter,

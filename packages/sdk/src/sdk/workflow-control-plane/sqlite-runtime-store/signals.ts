@@ -6,6 +6,7 @@ import type {
   SignalWaitSnapshot,
   StoredSignalOccurrence,
 } from "../types.js";
+import { isSqliteBusy } from "./db.js";
 
 type OccurrenceRow = {
   attempts: number;
@@ -91,7 +92,7 @@ export function claimNextSignalDelivery(
   database: Database,
   input: { leaseMs: number; now: string; workerId: string },
 ): SignalDeliveryClaim | undefined {
-  return database.transaction(() => {
+  const transaction = database.transaction(() => {
     releaseExpiredClaims(database, input.now);
     const pair = database.query(
       `select occurrence.id as occurrence_id, wait.token as wait_token
@@ -118,7 +119,16 @@ export function claimNextSignalDelivery(
       occurrence: requireOccurrence(database, pair.occurrence_id),
       wait: requireWait(database, pair.wait_token),
     };
-  })();
+  });
+  try {
+    return transaction.immediate();
+  } catch (error) {
+    // A competing process can own the sole WAL writer until the bounded busy
+    // timeout expires. The worker loop will poll again; crashing it loses that
+    // recovery path without improving claim atomicity.
+    if (isSqliteBusy(error)) return undefined;
+    throw error;
+  }
 }
 
 export function completeSignalDelivery(

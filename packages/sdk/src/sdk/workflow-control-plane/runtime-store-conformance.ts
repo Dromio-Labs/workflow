@@ -40,6 +40,102 @@ export type SignalRuntimeStoreConformanceProof = {
   idempotent: true;
 };
 
+export type ConditionalRuntimeStoreConformanceProof = {
+  artifactInsertOnce: true;
+  atomicWrites: true;
+  conditionSnapshot: true;
+};
+
+export async function proveConditionalRuntimeStoreConformance(
+  runtimeStore: WorkflowRuntimeStore,
+  namespace: string,
+): Promise<ConditionalRuntimeStoreConformanceProof> {
+  const commit = requireCapability(runtimeStore.commitDatasetRows, "commitDatasetRows");
+  const putArtifactOnce = requireCapability(
+    runtimeStore.putArtifactContentIfAbsent,
+    "putArtifactContentIfAbsent",
+  );
+  const aggregate = dataset(`${namespace}_aggregates`, ["ownerId", "id"]);
+  const commands = dataset(`${namespace}_commands`, ["ownerId", "key"]);
+  const events = dataset(`${namespace}_events`, ["ownerId", "id"]);
+  const upsert = requireCapability(runtimeStore.upsertDatasetRows, "upsertDatasetRows");
+  await upsert.call(runtimeStore, {
+    ...aggregate,
+    rows: [{ id: "aggregate-1", ownerId: "owner-1", version: 1 }],
+  });
+
+  const first = await commit.call(runtimeStore, {
+    conditions: [
+      {
+        definition: commands,
+        id: "command-absent",
+        key: { key: "command-1", ownerId: "owner-1" },
+        match: { kind: "absent" },
+      },
+      {
+        definition: aggregate,
+        id: "aggregate-version",
+        key: { id: "aggregate-1", ownerId: "owner-1" },
+        match: { equals: 1, field: "version", kind: "field" },
+      },
+    ],
+    writes: [
+      {
+        ...aggregate,
+        rows: [{ id: "aggregate-1", ownerId: "owner-1", version: 2 }],
+      },
+      {
+        ...commands,
+        rows: [{ fingerprint: "fingerprint-1", key: "command-1", ownerId: "owner-1" }],
+      },
+      {
+        ...events,
+        rows: [{ id: "event-1", ownerId: "owner-1", type: "updated" }],
+      },
+    ],
+  });
+  assertEqual(first.committed, true, "conditional commit");
+
+  const replay = await commit.call(runtimeStore, {
+    conditions: [{
+      definition: commands,
+      id: "command-absent",
+      key: { key: "command-1", ownerId: "owner-1" },
+      match: { kind: "absent" },
+    }],
+    writes: [],
+  });
+  assertEqual(replay.committed, false, "conditional replay");
+  if (replay.committed) throw new Error("Runtime-store conformance expected a failed command condition.");
+  assertEqual(replay.current?.fingerprint, "fingerprint-1", "condition snapshot");
+
+  const firstArtifact = await putArtifactOnce.call(runtimeStore, {
+    artifactId: `${namespace}-artifact`,
+    content: "first",
+    kind: "conformance",
+    metadata: { fingerprint: "first-fingerprint" },
+  });
+  const replayedArtifact = await putArtifactOnce.call(runtimeStore, {
+    artifactId: `${namespace}-artifact`,
+    content: "changed",
+    kind: "conformance",
+    metadata: { fingerprint: "changed-fingerprint" },
+  });
+  assertEqual(firstArtifact.created, true, "artifact creation");
+  assertEqual(replayedArtifact.created, false, "artifact replay");
+  assertEqual(
+    replayedArtifact.artifact.ref.metadata?.fingerprint,
+    "first-fingerprint",
+    "artifact canonical fingerprint",
+  );
+
+  return {
+    artifactInsertOnce: true,
+    atomicWrites: true,
+    conditionSnapshot: true,
+  };
+}
+
 export async function proveSignalRuntimeStoreConformance(
   runtimeStore: WorkflowRuntimeStore,
   namespace: string,
@@ -231,6 +327,18 @@ async function assertDatasetMismatch(
 function requireCapability<T>(capability: T | undefined, name: string): NonNullable<T> {
   if (!capability) throw new Error(`Runtime store lacks conformance capability ${name}.`);
   return capability;
+}
+
+function dataset(
+  name: string,
+  key: string[],
+): DatasetStoreDefinition {
+  return {
+    key,
+    name,
+    schemaFingerprint: `${name}-schema-v1`,
+    version: 1,
+  };
 }
 
 function assertEqual(actual: unknown, expected: unknown, label: string): void {

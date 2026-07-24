@@ -7,6 +7,7 @@ import {
 } from "../../shared/json.js";
 import type {
   PutArtifactContentInput,
+  PutArtifactContentIfAbsentResult,
   StoredArtifactContent,
 } from "../types.js";
 
@@ -51,13 +52,41 @@ export function putWorkflowArtifactContent(
   );
 }
 
+export function putWorkflowArtifactContentIfAbsent(
+  database: Database,
+  input: PutArtifactContentInput,
+): PutArtifactContentIfAbsentResult {
+  const transaction = database.transaction((): PutArtifactContentIfAbsentResult => {
+    const existing = artifactRow(database, input.artifactId);
+    if (existing) {
+      return { artifact: rowToArtifactDescriptor(existing), created: false };
+    }
+    database.run(
+      `insert into workflow_artifacts (
+        artifact_id, kind, media_type, title, metadata_json, content, created_at
+      ) values (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        input.artifactId,
+        input.kind,
+        input.mediaType ?? null,
+        input.title ?? null,
+        input.metadata ? JSON.stringify(input.metadata) : null,
+        input.content,
+        new Date().toISOString(),
+      ],
+    );
+    const inserted = artifactRow(database, input.artifactId);
+    if (!inserted) throw new Error(`Inserted workflow artifact ${input.artifactId} is missing.`);
+    return { artifact: rowToArtifactDescriptor(inserted), created: true };
+  });
+  return transaction.immediate();
+}
+
 export function getWorkflowArtifactContent(
   database: Database,
   artifactId: string,
 ): StoredArtifactContent | undefined {
-  const row = database.query(
-    "select * from workflow_artifacts where artifact_id = ?",
-  ).get(artifactId) as WorkflowArtifactRow | null;
+  const row = artifactRow(database, artifactId);
   return row ? rowToArtifactContent(row) : undefined;
 }
 
@@ -99,6 +128,14 @@ export function attachWorkflowArtifactRefs<T extends { runId: string }>(
 function rowToArtifactContent(row: WorkflowArtifactRow): StoredArtifactContent {
   return {
     content: row.content,
+    ...rowToArtifactDescriptor(row),
+  };
+}
+
+function rowToArtifactDescriptor(
+  row: WorkflowArtifactRow,
+): Omit<StoredArtifactContent, "content"> {
+  return {
     createdAt: row.created_at,
     ref: {
       artifactId: row.artifact_id,
@@ -109,6 +146,12 @@ function rowToArtifactContent(row: WorkflowArtifactRow): StoredArtifactContent {
       uri: `artifact:${row.artifact_id}`,
     },
   };
+}
+
+function artifactRow(database: Database, artifactId: string): WorkflowArtifactRow | null {
+  return database.query(
+    "select * from workflow_artifacts where artifact_id = ?",
+  ).get(artifactId) as WorkflowArtifactRow | null;
 }
 
 function normalizeArtifactRef(value: unknown): WorkflowRunArtifactRef {

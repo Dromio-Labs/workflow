@@ -11,9 +11,11 @@ import {
   getWorkflowArtifactContent,
   listWorkflowArtifactRefs,
   putWorkflowArtifactContent,
+  putWorkflowArtifactContentIfAbsent,
   recordWorkflowArtifactRef,
 } from "./sqlite-runtime-store/artifacts.js";
 import {
+  commitDatasetRows,
   countDatasetRows,
   datasetFreshness,
   listDatasets,
@@ -21,6 +23,7 @@ import {
   upsertDatasetRows,
 } from "./sqlite-runtime-store/datasets.js";
 import {
+  isSqliteBusy,
   openRuntimeDb,
   requireTriggerJob,
   rowToTriggerJob,
@@ -48,6 +51,9 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
   return {
     appendWorkflowRunEvents(runId, events) {
       appendSqliteWorkflowRunEvents(database, runId, events);
+    },
+    commitDatasetRows(input) {
+      return commitDatasetRows(database, input);
     },
     claimNextSignalDelivery(input) {
       return claimNextSqliteSignalDelivery(database, input);
@@ -85,7 +91,18 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
           updated_at: input.now,
         });
       });
-      return transaction();
+      // Reserve the WAL writer before the selection read establishes a snapshot.
+      // A deferred read-then-write transaction can otherwise fail its upgrade
+      // with SQLITE_BUSY_SNAPSHOT when another process commits in between.
+      try {
+        return transaction.immediate();
+      } catch (error) {
+        // Another process can hold the sole WAL writer beyond this connection's
+        // bounded busy timeout. Treat contention as no work for this poll so the
+        // worker's normal poll interval provides backpressure instead of exiting.
+        if (isSqliteBusy(error)) return undefined;
+        throw error;
+      }
     },
     completeTriggerJob(input) {
       const current = requireTriggerJob(database, input.jobId);
@@ -344,6 +361,9 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
     },
     putArtifactContent(input) {
       putWorkflowArtifactContent(database, input);
+    },
+    putArtifactContentIfAbsent(input) {
+      return putWorkflowArtifactContentIfAbsent(database, input);
     },
     putSignalOccurrence(input) {
       return putSqliteSignalOccurrence(database, input);

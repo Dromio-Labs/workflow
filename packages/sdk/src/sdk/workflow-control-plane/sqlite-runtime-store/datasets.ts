@@ -6,6 +6,11 @@ import {
   DatasetVersionMismatchError,
 } from "../dataset-port.js";
 import type {
+  DatasetCommitCondition,
+  DatasetCommitRowsInput,
+  DatasetCommitRowsResult,
+} from "../dataset-commit-contracts.js";
+import type {
   DatasetRegistryEntry,
   DatasetRow,
   DatasetRowsQuery,
@@ -20,43 +25,57 @@ type DatasetRegistryRow = {
   version: number;
 };
 
+class DatasetCommitConditionFailure extends Error {
+  constructor(readonly result: Extract<DatasetCommitRowsResult, { committed: false }>) {
+    super(`Dataset commit condition ${result.conditionId} did not match.`);
+    this.name = "DatasetCommitConditionFailure";
+  }
+}
+
 export function upsertDatasetRows(
   database: Database,
   input: DatasetUpsertRowsInput,
 ): DatasetUpsertRowsResult {
-  assertDataset(database, input);
-  if (input.rows.length === 0) return { inserted: 0, updated: 0 };
+  const transaction = database.transaction(() => {
+    assertDataset(database, input);
+    return writeDatasetRows(database, input);
+  });
+  return transaction.immediate();
+}
 
-  const table = datasetTableName(input.name);
-  const keyColumns = input.key.map(quoteIdentifier);
-  const keyPredicate = keyColumns.map((column) => `${column} = ?`).join(" and ");
-  const transaction = database.transaction((rows: DatasetRow[]) => {
-    let inserted = 0;
-    let updated = 0;
-    for (const row of rows) {
-      const keyValues = input.key.map((field) => encodeKeyValue(row[field]));
-      const existing = database.query(
-        `select rowid from ${table} where ${keyPredicate} limit 1`,
-      ).get(...keyValues) as { rowid: number } | null;
-      const now = new Date().toISOString();
-      if (existing) {
-        database.run(
-          `update ${table} set row_json = ?, updated_at = ? where rowid = ?`,
-          [JSON.stringify(row), now, existing.rowid],
-        );
-        updated += 1;
-      } else {
-        database.run(
-          `insert into ${table} (${["row_json", ...keyColumns, "created_at", "updated_at"].join(", ")})
-           values (${["?", ...input.key.map(() => "?"), "?", "?"].join(", ")})`,
-          [JSON.stringify(row), ...keyValues, now, now],
-        );
-        inserted += 1;
+export function commitDatasetRows(
+  database: Database,
+  input: DatasetCommitRowsInput,
+): DatasetCommitRowsResult {
+  assertUniqueConditionIds(input.conditions);
+  const transaction = database.transaction((): DatasetCommitRowsResult => {
+    for (const condition of input.conditions) assertDataset(database, condition.definition);
+    for (const write of input.writes) assertDataset(database, write);
+    for (const condition of input.conditions) {
+      const current = readConditionRow(database, condition);
+      if (!conditionMatches(condition, current)) {
+        throw new DatasetCommitConditionFailure({
+          committed: false,
+          conditionId: condition.id,
+          ...(current ? { current } : {}),
+        });
       }
     }
-    return { inserted, updated };
+    let inserted = 0;
+    let updated = 0;
+    for (const write of input.writes) {
+      const result = writeDatasetRows(database, write);
+      inserted += result.inserted;
+      updated += result.updated;
+    }
+    return { committed: true, inserted, updated };
   });
-  return transaction(input.rows);
+  try {
+    return transaction.immediate();
+  } catch (error) {
+    if (error instanceof DatasetCommitConditionFailure) return error.result;
+    throw error;
+  }
 }
 
 export function queryDatasetRows(
@@ -130,6 +149,108 @@ function assertDataset(database: Database, definition: DatasetStoreDefinition): 
     );
   }
   ensureDatasetTable(database, definition);
+}
+
+function writeDatasetRows(
+  database: Database,
+  input: DatasetUpsertRowsInput,
+): DatasetUpsertRowsResult {
+  if (input.rows.length === 0) return { inserted: 0, updated: 0 };
+  const table = datasetTableName(input.name);
+  const keyColumns = input.key.map(quoteIdentifier);
+  const keyPredicate = keyColumns.map((column) => `${column} = ?`).join(" and ");
+  let inserted = 0;
+  let updated = 0;
+  for (const row of input.rows) {
+    const keyValues = input.key.map((field) => encodeKeyValue(row[field]));
+    const existing = database.query(
+      `select rowid from ${table} where ${keyPredicate} limit 1`,
+    ).get(...keyValues) as { rowid: number } | null;
+    const now = new Date().toISOString();
+    if (existing) {
+      database.run(
+        `update ${table} set row_json = ?, updated_at = ? where rowid = ?`,
+        [JSON.stringify(row), now, existing.rowid],
+      );
+      updated += 1;
+    } else {
+      database.run(
+        `insert into ${table} (${["row_json", ...keyColumns, "created_at", "updated_at"].join(", ")})
+         values (${["?", ...input.key.map(() => "?"), "?", "?"].join(", ")})`,
+        [JSON.stringify(row), ...keyValues, now, now],
+      );
+      inserted += 1;
+    }
+  }
+  return { inserted, updated };
+}
+
+function readConditionRow(
+  database: Database,
+  condition: DatasetCommitCondition,
+): DatasetRow | undefined {
+  const expectedFields = [...condition.definition.key].sort();
+  const suppliedFields = Object.keys(condition.key).sort();
+  if (
+    expectedFields.length !== suppliedFields.length
+    || expectedFields.some((field, index) => suppliedFields[index] !== field)
+  ) {
+    throw new Error(
+      `Dataset condition ${condition.id} must supply the complete composite key for ${condition.definition.name}.`,
+    );
+  }
+  const keyPredicate = condition.definition.key
+    .map((field) => `${quoteIdentifier(field)} = ?`)
+    .join(" and ");
+  const keyValues = condition.definition.key.map((field) =>
+    encodeKeyValue(condition.key[field])
+  );
+  const row = database.query(
+    `select row_json from ${datasetTableName(condition.definition.name)}
+     where ${keyPredicate} limit 1`,
+  ).get(...keyValues) as { row_json: string } | null;
+  return row ? JSON.parse(row.row_json) as DatasetRow : undefined;
+}
+
+function conditionMatches(
+  condition: DatasetCommitCondition,
+  current: DatasetRow | undefined,
+): boolean {
+  if (condition.match.kind === "absent") return current === undefined;
+  return current !== undefined
+    && jsonValuesEqual(current[condition.match.field], condition.match.equals);
+}
+
+function assertUniqueConditionIds(conditions: readonly DatasetCommitCondition[]): void {
+  const ids = new Set<string>();
+  for (const condition of conditions) {
+    if (!condition.id.trim()) throw new Error("Dataset commit condition IDs must not be empty.");
+    if (ids.has(condition.id)) {
+      throw new Error(`Dataset commit condition ID is duplicated: ${condition.id}.`);
+    }
+    ids.add(condition.id);
+  }
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (left === null || right === null || typeof left !== "object" || typeof right !== "object") {
+    return false;
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) => jsonValuesEqual(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord).sort();
+  const rightKeys = Object.keys(rightRecord).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) =>
+      key === rightKeys[index] && jsonValuesEqual(leftRecord[key], rightRecord[key])
+    );
 }
 
 function ensureDatasetTable(database: Database, definition: DatasetStoreDefinition): void {

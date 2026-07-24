@@ -11,6 +11,12 @@ import {
   completeLocalChatEndpoint,
 } from "./local-chat.js";
 import {
+  createOpenAiCompatibleDeadline,
+  providerErrorMessage,
+  readResponseText,
+  waitForAbort,
+} from "./deadline.js";
+import {
   parseOpenAiCompatibleSse,
   readDeltaContent,
   readStreamedError,
@@ -26,19 +32,29 @@ import {
 export async function streamOpenAiCompatibleChatCompletion(
   input: OpenAiCompatibleChatInput,
 ): Promise<string> {
-  const maxAttempts = Math.max(1, Math.floor(input.maxAttempts ?? 1));
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      return await streamOpenAiCompatibleChatCompletionOnce(input);
-    } catch (error) {
-      lastError = error;
-      if (attempt >= maxAttempts) break;
-      const message = error instanceof Error ? error.message : String(error);
-      await emitRetry(input, attempt, maxAttempts, message);
+  const deadline = createOpenAiCompatibleDeadline(input.signal, input.timeoutMs);
+  const boundedInput = {
+    ...input,
+    signal: deadline.signal,
+    timeoutMs: deadline.timeoutMs,
+  };
+  try {
+    const maxAttempts = Math.max(1, Math.floor(input.maxAttempts ?? 1));
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await streamOpenAiCompatibleChatCompletionOnce(boundedInput);
+      } catch (error) {
+        lastError = error;
+        if (deadline.signal.aborted || attempt >= maxAttempts) break;
+        const message = error instanceof Error ? error.message : String(error);
+        await emitRetry(boundedInput, attempt, maxAttempts, message);
+      }
     }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  } finally {
+    deadline.dispose();
   }
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
 
 async function streamOpenAiCompatibleChatCompletionOnce(
@@ -53,6 +69,7 @@ async function streamOpenAiCompatibleChatCompletionOnce(
     model: input.model,
     operation: input.operation,
     provider: input.provider,
+    timeoutMs: input.timeoutMs ?? 0,
   };
   await emitModelEvent(input, {
     detail: attributes,
@@ -74,26 +91,38 @@ async function streamOpenAiCompatibleChatCompletionOnce(
 
   let response: Response;
   try {
-    response = await fetch(`${input.baseUrl}/v1/chat/completions`, {
-      body: JSON.stringify({
-        ...input.body,
-        stream: true,
+    response = await waitForAbort(
+      fetch(`${input.baseUrl}/v1/chat/completions`, {
+        body: JSON.stringify({
+          ...input.body,
+          stream: true,
+        }),
+        headers: {
+          ...(input.apiKey ? { authorization: `Bearer ${input.apiKey}` } : {}),
+          "content-type": "application/json",
+          "x-llm-provider": input.provider,
+        },
+        method: "POST",
+        signal: input.signal,
       }),
-      headers: {
-        ...(input.apiKey ? { authorization: `Bearer ${input.apiKey}` } : {}),
-        "content-type": "application/json",
-        "x-llm-provider": input.provider,
-      },
-      method: "POST",
-    });
+      input.signal,
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = providerErrorMessage(error, input.signal);
     await emitFailure(input, spanId, traceId, attributes, message);
     throw setupError(input, message);
   }
 
   if (!response.ok) {
-    const message = `provider returned ${response.status}: ${await response.text()}`;
+    let responseText: string;
+    try {
+      responseText = await readResponseText(response, input.signal);
+    } catch (error) {
+      const message = providerErrorMessage(error, input.signal);
+      await emitFailure(input, spanId, traceId, attributes, message);
+      throw setupError(input, message);
+    }
+    const message = `provider returned ${response.status}: ${responseText}`;
     await emitFailure(input, spanId, traceId, attributes, message);
     throw setupError(input, message);
   }
@@ -106,7 +135,7 @@ async function streamOpenAiCompatibleChatCompletionOnce(
   let content = "";
   let usage: unknown;
   try {
-    for await (const chunk of parseOpenAiCompatibleSse(response.body)) {
+    for await (const chunk of parseOpenAiCompatibleSse(response.body, input.signal)) {
       const streamedError = readStreamedError(chunk);
       if (streamedError) {
         throw new Error(streamedError);
@@ -135,7 +164,7 @@ async function streamOpenAiCompatibleChatCompletionOnce(
       });
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = providerErrorMessage(error, input.signal);
     await emitFailure(input, spanId, traceId, attributes, message);
     throw setupError(input, message);
   }

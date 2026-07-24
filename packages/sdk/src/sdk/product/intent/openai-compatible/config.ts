@@ -1,6 +1,9 @@
 import type {
   OpenAiCompatibleChatModelConfig,
 } from "./types.js";
+import {
+  resolveOpenAiCompatibleTimeoutMs,
+} from "./deadline.js";
 
 export type ResolvedOpenAiCompatibleChatModelConfig =
   Required<Omit<OpenAiCompatibleChatModelConfig, "apiKey" | "chatTransport" | "chatUrl">> & {
@@ -20,6 +23,8 @@ export function resolveOpenAiCompatibleChatModelConfig(
   const provider = config.provider ?? process.env.INTENT_PROVIDER?.trim() ?? (chatUrl ? "local-chat" : "openai-compatible");
   const envTransport = process.env.INTENT_CHAT_TRANSPORT?.trim();
   const chatTransport = config.chatTransport ?? (envTransport === "curl" || envTransport === "fetch" ? envTransport : undefined);
+  const envTimeout = process.env.INTENT_PROVIDER_TIMEOUT_MS?.trim();
+  const envTimeoutMs = envTimeout ? Number(envTimeout) : undefined;
 
   if (!baseUrl) {
     throw new Error("OpenAI-compatible chat model requires baseUrl, INTENT_BASE_URL, or INTENT_CHAT_URL.");
@@ -37,6 +42,9 @@ export function resolveOpenAiCompatibleChatModelConfig(
     model,
     provider,
     temperature: config.temperature ?? 0.2,
+    timeoutMs: resolveOpenAiCompatibleTimeoutMs(
+      config.timeoutMs ?? (Number.isFinite(envTimeoutMs) ? envTimeoutMs : undefined),
+    ),
   };
 }
 
