@@ -6,6 +6,7 @@ import type {
   SignalWaitSnapshot,
   StoredSignalOccurrence,
 } from "../types.js";
+import { isSqliteBusy } from "./db.js";
 
 type OccurrenceRow = {
   attempts: number;
@@ -119,7 +120,15 @@ export function claimNextSignalDelivery(
       wait: requireWait(database, pair.wait_token),
     };
   });
-  return transaction.immediate();
+  try {
+    return transaction.immediate();
+  } catch (error) {
+    // A competing process can own the sole WAL writer until the bounded busy
+    // timeout expires. The worker loop will poll again; crashing it loses that
+    // recovery path without improving claim atomicity.
+    if (isSqliteBusy(error)) return undefined;
+    throw error;
+  }
 }
 
 export function completeSignalDelivery(

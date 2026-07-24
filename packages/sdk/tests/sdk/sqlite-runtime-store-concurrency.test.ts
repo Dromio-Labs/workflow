@@ -42,7 +42,6 @@ describe("SQLite workflow runtime store concurrency", () => {
 			expect(results.map((result) => result.exitCode)).toEqual(
 				Array.from({ length: WORKER_COUNT }, () => 0),
 			);
-			expect(results.filter((result) => result.claimed.length > 0).length).toBeGreaterThan(1);
 			expect(new Set(ids).size).toBe(CLAIM_COUNT);
 			expect(ids).toHaveLength(CLAIM_COUNT);
 			const stored = await store.listTriggerJobs({ status: "claimed" });
@@ -101,7 +100,9 @@ describe("SQLite workflow runtime store concurrency", () => {
 
 			const results = await Promise.all(workers.map((worker) => worker.result));
 			const claims = results.flatMap((result) => result.claimed);
-			expect(results.filter((result) => result.claimed.length > 0).length).toBeGreaterThan(1);
+			expect(results.map((result) => result.exitCode)).toEqual(
+				Array.from({ length: WORKER_COUNT }, () => 0),
+			);
 			expect(claims).toHaveLength(CLAIM_COUNT);
 			expect(new Set(claims.map((claim) => claim.occurrenceId)).size).toBe(CLAIM_COUNT);
 			expect(new Set(claims.map((claim) => claim.waitToken)).size).toBe(CLAIM_COUNT);

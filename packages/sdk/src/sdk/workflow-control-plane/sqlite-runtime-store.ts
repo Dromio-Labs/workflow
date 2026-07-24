@@ -23,6 +23,7 @@ import {
   upsertDatasetRows,
 } from "./sqlite-runtime-store/datasets.js";
 import {
+  isSqliteBusy,
   openRuntimeDb,
   requireTriggerJob,
   rowToTriggerJob,
@@ -93,7 +94,15 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       // Reserve the WAL writer before the selection read establishes a snapshot.
       // A deferred read-then-write transaction can otherwise fail its upgrade
       // with SQLITE_BUSY_SNAPSHOT when another process commits in between.
-      return transaction.immediate();
+      try {
+        return transaction.immediate();
+      } catch (error) {
+        // Another process can hold the sole WAL writer beyond this connection's
+        // bounded busy timeout. Treat contention as no work for this poll so the
+        // worker's normal poll interval provides backpressure instead of exiting.
+        if (isSqliteBusy(error)) return undefined;
+        throw error;
+      }
     },
     completeTriggerJob(input) {
       const current = requireTriggerJob(database, input.jobId);

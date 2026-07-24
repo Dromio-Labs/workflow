@@ -39,6 +39,13 @@ export function openRuntimeDb(filePath: string): Database {
   return database;
 }
 
+export function isSqliteBusy(error: unknown): boolean {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && error.code === "SQLITE_BUSY";
+}
+
 export function workflowRuntimeBytes(database: Database, workflowId: string): number {
   const jobBytes = database.query(
     `select coalesce(sum(length(payload_json) + length(coalesce(error, ''))), 0) as bytes
