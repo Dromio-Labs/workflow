@@ -1,12 +1,17 @@
+import {
+  waitForAbort,
+} from "./deadline.js";
+
 export async function* parseOpenAiCompatibleSse(
   body: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
 ): AsyncIterable<Record<string, unknown>> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await waitForAbort(reader.read(), signal);
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       let boundary = findEventBoundary(buffer);
@@ -25,7 +30,15 @@ export async function* parseOpenAiCompatibleSse(
       if (parsed && parsed !== "done") yield parsed;
     }
   } finally {
-    reader.releaseLock();
+    if (signal?.aborted) {
+      void reader.cancel(signal.reason).catch(() => undefined);
+    }
+    try {
+      reader.releaseLock();
+    } catch {
+      // An aborted source may still have a pending read. Cancellation above
+      // releases the underlying resource without delaying the terminal error.
+    }
   }
 }
 

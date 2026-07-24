@@ -6,6 +6,11 @@ import {
   emitModelEvent,
   modelTrace,
 } from "./events.js";
+import {
+  providerErrorMessage,
+  readResponseText,
+  waitForAbort,
+} from "./deadline.js";
 import type {
   OpenAiCompatibleChatInput,
 } from "./types.js";
@@ -30,7 +35,7 @@ export async function completeLocalChatEndpoint(
   try {
     json = await requestLocalChatJson(input, chatUrl, payload);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = providerErrorMessage(error, input.signal);
     await emitFailure(input, spanId, traceId, attributes, message);
     throw setupError(input, message);
   }
@@ -95,19 +100,29 @@ async function requestLocalChatJson(
 ) {
   const transport = input.chatTransport ?? process.env.INTENT_CHAT_TRANSPORT ?? "fetch";
   if (transport === "curl") {
-    return requestLocalChatJsonWithCurl(chatUrl, payload);
+    return requestLocalChatJsonWithCurl(chatUrl, payload, input.signal);
   }
-  const response = await fetch(chatUrl, {
-    body: JSON.stringify(payload),
-    headers: {
-      "content-type": "application/json",
-    },
-    method: "POST",
-  });
+  const response = await waitForAbort(
+    fetch(chatUrl, {
+      body: JSON.stringify(payload),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+      signal: input.signal,
+    }),
+    input.signal,
+  );
   if (!response.ok) {
-    throw new Error(`provider returned ${response.status}: ${await response.text()}`);
+    throw new Error(`provider returned ${response.status}: ${await readResponseText(response, input.signal)}`);
   }
-  return response.json() as Promise<unknown>;
+  const responseText = await readResponseText(response, input.signal);
+  try {
+    return JSON.parse(responseText) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`provider response was not JSON: ${message}; ${responseText.slice(0, 500)}`);
+  }
 }
 
 async function requestLocalChatJsonWithCurl(
@@ -117,7 +132,11 @@ async function requestLocalChatJsonWithCurl(
     model: string;
     system_prompt: string;
   },
+  signal: AbortSignal | undefined,
 ) {
+  if (signal?.aborted) {
+    throw signal.reason;
+  }
   const proc = Bun.spawn([
     "curl",
     "-sS",
@@ -130,11 +149,23 @@ async function requestLocalChatJsonWithCurl(
     stderr: "pipe",
     stdout: "pipe",
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-    proc.exited,
-  ]);
+  const kill = () => {
+    proc.kill();
+  };
+  signal?.addEventListener("abort", kill, { once: true });
+  let stdout: string;
+  let stderr: string;
+  let exitCode: number;
+  try {
+    [stdout, stderr, exitCode] = await waitForAbort(Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]), signal);
+  } finally {
+    signal?.removeEventListener("abort", kill);
+    if (signal?.aborted) proc.kill();
+  }
   if (exitCode !== 0) {
     throw new Error(`curl exited ${exitCode}: ${stderr.trim() || stdout.trim()}`);
   }

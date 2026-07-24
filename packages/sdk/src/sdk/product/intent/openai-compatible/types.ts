@@ -23,7 +23,11 @@ export type OpenAiCompatibleChatInput = {
   onEvent?: (event: EventPayload) => void | Promise<void>;
   operation: string;
   provider: string;
+  /** Cancels the provider request and any in-progress response-body read. */
+  signal?: AbortSignal;
   setupErrorMessage?: (cause: string) => string;
+  /** Total provider deadline across all attempts. Defaults to 120 seconds and is capped at 300 seconds. */
+  timeoutMs?: number;
   trace?: OpenAiCompatibleTraceInput;
 };
 
@@ -41,6 +45,8 @@ export type OpenAiCompatibleChatModelConfig = {
   model?: string;
   provider?: string;
   temperature?: number;
+  /** Default provider deadline. INTENT_PROVIDER_TIMEOUT_MS is used when omitted. */
+  timeoutMs?: number;
 };
 
 export type OpenAiCompatibleChatModelRequest = {
@@ -50,8 +56,12 @@ export type OpenAiCompatibleChatModelRequest = {
   onEvent?: (event: EventPayload) => void | Promise<void>;
   operation: string;
   schema?: OperationContractSourceLike;
+  /** Cancels this completion without changing the model's default deadline. */
+  signal?: AbortSignal;
   setupErrorMessage?: (cause: string) => string;
   systemPrompt?: string;
+  /** Overrides the model's provider deadline for this completion. */
+  timeoutMs?: number;
   trace?: OpenAiCompatibleTraceInput;
   userPrompt?: string;
 };

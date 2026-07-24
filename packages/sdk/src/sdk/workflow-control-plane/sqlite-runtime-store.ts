@@ -11,9 +11,11 @@ import {
   getWorkflowArtifactContent,
   listWorkflowArtifactRefs,
   putWorkflowArtifactContent,
+  putWorkflowArtifactContentIfAbsent,
   recordWorkflowArtifactRef,
 } from "./sqlite-runtime-store/artifacts.js";
 import {
+  commitDatasetRows,
   countDatasetRows,
   datasetFreshness,
   listDatasets,
@@ -48,6 +50,9 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
   return {
     appendWorkflowRunEvents(runId, events) {
       appendSqliteWorkflowRunEvents(database, runId, events);
+    },
+    commitDatasetRows(input) {
+      return commitDatasetRows(database, input);
     },
     claimNextSignalDelivery(input) {
       return claimNextSqliteSignalDelivery(database, input);
@@ -347,6 +352,9 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
     },
     putArtifactContent(input) {
       putWorkflowArtifactContent(database, input);
+    },
+    putArtifactContentIfAbsent(input) {
+      return putWorkflowArtifactContentIfAbsent(database, input);
     },
     putSignalOccurrence(input) {
       return putSqliteSignalOccurrence(database, input);

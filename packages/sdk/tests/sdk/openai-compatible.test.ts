@@ -136,6 +136,125 @@ describe("OpenAI-compatible streaming adapter", () => {
     });
   });
 
+  test("times out a fetch that never resolves and emits a terminal failure", async () => {
+    const events: EventPayload[] = [];
+    let requestSignal: AbortSignal | null | undefined;
+    globalThis.fetch = ((_input, init) => {
+      requestSignal = init?.signal;
+      return new Promise<Response>(() => undefined);
+    }) as typeof fetch;
+
+    await expect(streamOpenAiCompatibleChatCompletion({
+      baseUrl: "http://localhost:1111",
+      body: { messages: [], model: "test-model" },
+      maxAttempts: 3,
+      model: "test-model",
+      onEvent(event) {
+        events.push(event);
+      },
+      operation: "Bound provider request",
+      provider: "test-provider",
+      setupErrorMessage: (cause) => `setup needed: ${cause}`,
+      timeoutMs: 20,
+    })).rejects.toThrow("setup needed: provider timed out after 20ms");
+
+    expect(requestSignal?.aborted).toBe(true);
+    expect(events.map((event) => event.type)).toEqual([
+      "model.request.started",
+      "model.request.failed",
+    ]);
+    expect(events.at(-1)?.detail).toMatchObject({
+      error: "provider timed out after 20ms",
+      timeoutMs: 20,
+    });
+    expect(events.at(-1)?.trace).toMatchObject({ status: "error" });
+    expect(events.some((event) => event.type === "model.request.retrying")).toBe(false);
+    expect(events.some((event) => event.type === "model.response.completed")).toBe(false);
+  });
+
+  test("times out a stalled streaming body and cancels the body reader", async () => {
+    const events: EventPayload[] = [];
+    const encoder = new TextEncoder();
+    let cancelledReason: unknown;
+    let requestSignal: AbortSignal | null | undefined;
+    globalThis.fetch = (async (_input, init) => {
+      requestSignal = init?.signal;
+      return new Response(new ReadableStream<Uint8Array>({
+        cancel(reason) {
+          cancelledReason = reason;
+        },
+        start(controller) {
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: "partial" } }] })}\n\n`,
+          ));
+        },
+      }), {
+        headers: { "content-type": "text/event-stream" },
+      });
+    }) as typeof fetch;
+
+    await expect(streamOpenAiCompatibleChatCompletion({
+      baseUrl: "http://localhost:1111",
+      body: { messages: [], model: "test-model" },
+      model: "test-model",
+      onEvent(event) {
+        events.push(event);
+      },
+      operation: "Read bounded provider stream",
+      provider: "test-provider",
+      setupErrorMessage: (cause) => `setup needed: ${cause}`,
+      timeoutMs: 20,
+    })).rejects.toThrow("setup needed: provider timed out after 20ms");
+    await Promise.resolve();
+
+    expect(requestSignal?.aborted).toBe(true);
+    expect(cancelledReason).toBeInstanceOf(Error);
+    expect((cancelledReason as Error).message).toBe("provider timed out after 20ms");
+    expect(events.map((event) => event.type)).toEqual([
+      "model.request.started",
+      "model.response.delta",
+      "model.request.failed",
+    ]);
+    expect(events.at(-1)?.trace).toMatchObject({ status: "error" });
+    expect(events.some((event) => event.type === "model.response.completed")).toBe(false);
+  });
+
+  test("composes parent cancellation with the provider deadline", async () => {
+    const events: EventPayload[] = [];
+    const parent = new AbortController();
+    let requestSignal: AbortSignal | null | undefined;
+    globalThis.fetch = ((_input, init) => {
+      requestSignal = init?.signal;
+      queueMicrotask(() => parent.abort(new Error("durable worker cancelled")));
+      return new Promise<Response>(() => undefined);
+    }) as typeof fetch;
+
+    await expect(streamOpenAiCompatibleChatCompletion({
+      baseUrl: "http://localhost:1111",
+      body: { messages: [], model: "test-model" },
+      maxAttempts: 2,
+      model: "test-model",
+      onEvent(event) {
+        events.push(event);
+      },
+      operation: "Cancel provider request",
+      provider: "test-provider",
+      signal: parent.signal,
+      timeoutMs: 5_000,
+    })).rejects.toThrow("durable worker cancelled");
+
+    expect(requestSignal).not.toBe(parent.signal);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(events.map((event) => event.type)).toEqual([
+      "model.request.started",
+      "model.request.failed",
+    ]);
+    expect(events.at(-1)?.detail).toMatchObject({
+      error: "durable worker cancelled",
+      timeoutMs: 5_000,
+    });
+  });
+
   test("surfaces streamed provider error chunks", async () => {
     globalThis.fetch = (async () =>
       new Response([

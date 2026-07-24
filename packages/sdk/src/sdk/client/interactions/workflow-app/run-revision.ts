@@ -22,8 +22,8 @@ export function areWorkflowAppRunSnapshotsEquivalent(
   left: WorkflowAppRunSnapshot,
   right: WorkflowAppRunSnapshot,
 ): boolean {
-  return JSON.stringify(withoutAttachedArtifactRefs(left)) ===
-    JSON.stringify(withoutAttachedArtifactRefs(right));
+  return canonicalJson(withoutAttachedArtifactRefs(left)) ===
+    canonicalJson(withoutAttachedArtifactRefs(right));
 }
 
 export function workflowAppRunSnapshotRevision(snapshot: WorkflowAppRunSnapshot): {
@@ -42,4 +42,18 @@ function withoutAttachedArtifactRefs(snapshot: WorkflowAppRunSnapshot): Workflow
   if (!snapshot.artifactRefs) return snapshot;
   const { artifactRefs: _artifactRefs, ...run } = snapshot;
   return run;
+}
+
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(canonicalJsonValue(value));
+}
+
+function canonicalJsonValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalJsonValue);
+  if (!value || typeof value !== "object") return value;
+  const record = value as Record<string, unknown>;
+  return Object.fromEntries(Object.keys(record)
+    .filter((key) => record[key] !== undefined)
+    .sort()
+    .map((key) => [key, canonicalJsonValue(record[key])]));
 }

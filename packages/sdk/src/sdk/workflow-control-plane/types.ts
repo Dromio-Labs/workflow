@@ -14,6 +14,10 @@ import type {
   WorkflowAppWorkflowDescriptor,
 } from "../client/interactions/workflow-app.js";
 import type { SignalDescriptor } from "../authoring/signal.js";
+import type {
+  DatasetCommitRowsInput,
+  DatasetCommitRowsResult,
+} from "./dataset-commit-contracts.js";
 
 export type TriggerType = "block" | "event" | "http" | "manual" | "schedule" | "webhook";
 
@@ -265,6 +269,13 @@ export type StoredArtifactContent = {
   ref: WorkflowRunArtifactRef;
 };
 
+export type PutArtifactContentIfAbsentResult = {
+  /** The persisted descriptor; artifact bytes are intentionally not returned. */
+  artifact: Omit<StoredArtifactContent, "content">;
+  /** True only when this invocation inserted the canonical artifact. */
+  created: boolean;
+};
+
 export type DatasetStoreDefinition = {
   key: string[];
   name: string;
@@ -399,6 +410,11 @@ export type WorkflowRuntimeStore = {
     now: string;
     workerId: string;
   }): Promise<SignalDeliveryClaim | undefined> | SignalDeliveryClaim | undefined;
+  /**
+   * Atomically evaluates row conditions and, only when all match, applies
+   * writes across one or more datasets.
+   */
+  commitDatasetRows?(input: DatasetCommitRowsInput): Promise<DatasetCommitRowsResult> | DatasetCommitRowsResult;
   completeSignalDelivery(input: {
     now: string;
     occurrenceId: string;
@@ -460,6 +476,11 @@ export type WorkflowRuntimeStore = {
     runId: string;
   }): Promise<TriggerJobSnapshot> | TriggerJobSnapshot;
   putArtifactContent?(input: PutArtifactContentInput): Promise<void> | void;
+  /**
+   * Inserts immutable artifact content once and returns the canonical existing
+   * descriptor to concurrent or retried writers.
+   */
+  putArtifactContentIfAbsent?(input: PutArtifactContentInput): Promise<PutArtifactContentIfAbsentResult> | PutArtifactContentIfAbsentResult;
   /** Atomically preserves the newest run revision and rejects stale regressions. */
   putWorkflowRun(snapshot: StoredWorkflowRunSnapshot): Promise<PutWorkflowRunResult> | PutWorkflowRunResult;
   putSignalOccurrence(input: PutSignalOccurrenceInput): Promise<PutSignalOccurrenceResult> | PutSignalOccurrenceResult;
