@@ -4,7 +4,10 @@ import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { packageDirectories } from "./package-closure.js";
+import {
+  packageDirectories,
+  selectCanonicalPublishTarget,
+} from "./package-closure.js";
 import {
   assertPackedPackageDependencyClosure,
   assertPackedPackageRuntimePayload,
@@ -15,6 +18,14 @@ const root = path.resolve(import.meta.dir, "..");
 const outDir = path.join(root, ".tmp", "package-release", "artifacts");
 const packageDir = path.join(outDir, "packages");
 const stageDir = path.join(outDir, "staging");
+const args = process.argv.slice(2);
+const unknownArgs = args.filter((arg) => arg !== "--canonical-only");
+if (unknownArgs.length) {
+  throw new Error(
+    `Usage: bun scripts/build-local-registry.ts [--canonical-only]; unknown arguments: ${unknownArgs.join(", ")}`,
+  );
+}
+const canonicalOnly = args.includes("--canonical-only");
 
 await rm(outDir, { force: true, recursive: true });
 await mkdir(packageDir, { recursive: true });
@@ -89,11 +100,16 @@ for (const tarballFile of (await readdir(packageDir))
   });
 }
 
+const exposedRegistry = canonicalOnly
+  ? selectCanonicalPublishTarget(registry)
+  : registry;
 await writeFile(
   path.join(outDir, "package-registry-manifest.json"),
-  `${JSON.stringify(registry, null, 2)}\n`,
+  `${JSON.stringify(exposedRegistry, null, 2)}\n`,
 );
-console.log(`Built ${registry.length} workflow package artifacts in ${outDir}`);
+console.log(
+  `Built ${registry.length} workflow package artifacts and exposed ${exposedRegistry.length} in ${outDir}`,
+);
 
 interface PackageManifest {
   bin?: string | Record<string, string>;
