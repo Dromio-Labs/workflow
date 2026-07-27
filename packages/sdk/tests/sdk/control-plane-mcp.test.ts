@@ -51,6 +51,12 @@ describe("workflow control-plane MCP provider", () => {
     expect(html && "text" in html ? html.text : "").toContain("handoff_requested");
     expect(html && "text" in html ? html.text : "").toContain('aria-live="polite"');
     expect(html && "text" in html ? html.text : "").toContain('typeof run.result==="string"');
+    expect(html && "text" in html ? html.text : "").toContain('body data-run-status="loading"');
+    expect(html && "text" in html ? html.text : "").toContain('class="status-dot"');
+    expect(html && "text" in html ? html.text : "").toContain("--surface:#181818");
+    expect(html && "text" in html ? html.text : "").toContain("--thread-content-max-width:48rem");
+    expect(html && "text" in html ? html.text : "").toContain('event.type.includes("started")');
+    expect(html && "text" in html ? html.text : "").toContain("editor.dataset.interactionId!==interactionId");
     expect(html && "text" in html ? html.text : "").toContain("failed");
 
     const fallback = await provider.callTool("dromio.get_run", { runId: "run-mcp" });

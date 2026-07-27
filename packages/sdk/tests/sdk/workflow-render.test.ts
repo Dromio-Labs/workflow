@@ -54,6 +54,9 @@ import {
 import type {
   LoopGraphProjection,
 } from "@dromio/workflow/core";
+import {
+  workflowInitialNodeMeasurements,
+} from "../../src/sdk/client/workflow-render/layout.js";
 
 describe("workflow render model", () => {
   test("projects a graph into a renderable workflow model", () => {
@@ -389,10 +392,31 @@ describe("workflow render model", () => {
     expect(html).toContain('data-dromio-workflow-canvas="plan-review"');
     expect(html).toContain('aria-roledescription="interactive workflow canvas"');
     expect(html).toContain('aria-label="Workflow canvas controls"');
+    const initialStyle = html.match(/data-node-kind="initial"[^>]*style="([^"]+)"/)?.[1];
+    expect(initialStyle).toContain("height:24px");
+    expect(initialStyle).toContain("width:24px");
+    expect(initialStyle).not.toContain("border:5px");
     expect(html).toContain('data-node-status="running"');
     expect(html).toContain('aria-label="Selected workflow step"');
     expect(html).toContain("Drag to pan");
     expect(adapterHtml).toContain("Fit");
+  });
+
+  test("anchors outgoing edges to the compact initial-state marker", () => {
+    const model = projectWorkflowGraphRenderModel({ graph: graphFixture() });
+    const layout = computeWorkflowRenderLayout(
+      model,
+      workflowRenderLayoutProfiles.web,
+      workflowInitialNodeMeasurements(model),
+    );
+    const initial = layout.boxes.find((box) => box.kind === "initial");
+    const outgoing = layout.edges.find((edge) => edge.sourceBoxId === initial?.id);
+
+    expect(initial).toMatchObject({ height: 24, width: 24 });
+    expect(outgoing?.points[0]).toEqual({
+      x: initial!.x + initial!.width,
+      y: initial!.y + initial!.height / 2,
+    });
   });
 
   test("renders a full React workflow view snapshot with hooks and json-render result", () => {

@@ -25,6 +25,9 @@ import {
   type WorkflowRenderModel,
   type WorkflowRenderNode,
 } from "../client/workflow-render/index.js";
+import {
+  workflowInitialNodeMeasurements,
+} from "../client/workflow-render/layout.js";
 export type WorkflowCanvasProps = {
   ariaLabel?: string;
   autoFit?: boolean;
@@ -64,7 +67,11 @@ export function WorkflowCanvas(props: WorkflowCanvasProps): ReactElement {
   } | undefined>(undefined);
   const markerId = `dromio-canvas-arrow-${useId().replaceAll(":", "")}`;
   const layout = useMemo(
-    () => computeWorkflowRenderLayout(props.model, props.layoutProfile ?? workflowRenderLayoutProfiles.web),
+    () => computeWorkflowRenderLayout(
+      props.model,
+      props.layoutProfile ?? workflowRenderLayoutProfiles.web,
+      workflowInitialNodeMeasurements(props.model),
+    ),
     [props.layoutProfile, props.model],
   );
   const nodeByLayoutId = useMemo(() => workflowNodeByLayoutId(props.model), [props.model]);
@@ -340,13 +347,12 @@ function CanvasBox(props: {
   if (props.box.kind === "initial") {
     return createElement("span", {
       "aria-label": props.box.label || "Initial state",
+      "data-node-kind": "initial",
       role: "img",
       style: {
         ...position,
         background: "#f4f4f5",
-        border: "5px solid #f4f4f5",
         borderRadius: 999,
-        boxShadow: "0 0 0 3px rgba(244,244,245,.14)",
         boxSizing: "border-box",
       },
     });

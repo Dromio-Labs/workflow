@@ -29,6 +29,10 @@ describe("workflow app GUI", () => {
       "$end",
     ]);
     expect(payload.workflows[0]?.layout.boxes).toHaveLength(4);
+    expect(payload.workflows[0]?.layout.boxes.find((box) => box.kind === "initial")).toMatchObject({
+      height: 24,
+      width: 24,
+    });
     expect(payload.workflows[0]?.trigger).toEqual({
       id: "$trigger",
       input: { kind: "none", required: false },
