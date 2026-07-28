@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import { kernelFoundationPackages } from "./package-closure.js";
@@ -30,7 +30,13 @@ export async function loadKernelFoundationArtifacts(
     throw new Error(`Kernel foundation manifest must be an array: ${manifestPath}`);
   }
   const registry = parsed as readonly KernelRegistryArtifact[];
+  if (registry.length !== kernelFoundationPackages.length) {
+    throw new Error(
+      `Kernel foundation manifest must contain exactly ${kernelFoundationPackages.length} artifacts, found ${registry.length}.`,
+    );
+  }
   const resolved = new Map<string, KernelFoundationArtifact>();
+  const tarballFiles = new Set<string>();
 
   for (const expected of kernelFoundationPackages) {
     const matches = registry.filter((item) => item.name === expected.name);
@@ -49,6 +55,10 @@ export async function loadKernelFoundationArtifacts(
     if (path.basename(item.tarballFile) !== item.tarballFile) {
       throw new Error(`Kernel foundation manifest contains an unsafe tarball filename for ${expected.name}.`);
     }
+    if (tarballFiles.has(item.tarballFile)) {
+      throw new Error(`Kernel foundation manifest reuses tarball filename ${item.tarballFile}.`);
+    }
+    tarballFiles.add(item.tarballFile);
     const tarballPath = path.join(artifactDirectory, "packages", item.tarballFile);
     const bytes = await readFile(tarballPath);
     const integrity = `sha512-${createHash("sha512").update(bytes).digest("base64")}`;
@@ -57,6 +67,14 @@ export async function loadKernelFoundationArtifacts(
       throw new Error(`Kernel foundation tarball bytes do not match the manifest identity for ${expected.name}@${expected.version}.`);
     }
     resolved.set(expected.name, { ...expected, tarballPath });
+  }
+  const packageFiles = await readdir(path.join(artifactDirectory, "packages"));
+  const unexpectedFiles = packageFiles.filter((entry) => !tarballFiles.has(entry));
+  if (unexpectedFiles.length > 0 || packageFiles.length !== tarballFiles.size) {
+    throw new Error(
+      `Kernel foundation packages directory must contain only the ${tarballFiles.size} declared tarballs; ` +
+      `found unexpected files: ${unexpectedFiles.join(", ") || "none"}.`,
+    );
   }
   return resolved;
 }

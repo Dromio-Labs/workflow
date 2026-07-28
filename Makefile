@@ -1,4 +1,4 @@
-.PHONY: help setup build check test verify-package local-registry release-rehearse release-verify-next release-publish-next release-repair-next-tags release-promote-latest
+.PHONY: help setup build check test verify-package local-registry release-prepare-foundation release-rehearse release-verify-next release-publish-next release-repair-next-tags release-promote-latest
 
 help:
 	@printf "Dromio Workflow commands:\n"
@@ -6,6 +6,7 @@ help:
 	@printf "  make build           Build @dromio/workflow and its package closure\n"
 	@printf "  make check           Run types, tests, build, and clean-consumer package proof\n"
 	@printf "  make local-registry  Build local package-registry artifacts for dro\n"
+	@printf "  make release-prepare-foundation  Download and verify the exact public Kernel foundation\n"
 	@printf "  make release-rehearse  Verify canonical Workflow against the exact Kernel foundation artifacts\n"
 	@printf "  make release-verify-next  Verify the public @dromio/workflow@next package\n"
 	@printf "  make release-repair-next-tags  Remove unintended first-release latest tags\n"
@@ -27,6 +28,9 @@ verify-package:
 
 local-registry:
 	@bun run local-registry
+
+release-prepare-foundation:
+	@bun run release:prepare-foundation
 
 release-rehearse:
 	@bun run release:rehearse
