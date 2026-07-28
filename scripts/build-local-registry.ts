@@ -26,6 +26,9 @@ if (unknownArgs.length) {
   );
 }
 const canonicalOnly = args.includes("--canonical-only");
+const packageDirectoriesToPack = canonicalOnly
+  ? ["packages/sdk"] as const
+  : packageDirectories;
 
 await rm(outDir, { force: true, recursive: true });
 await mkdir(packageDir, { recursive: true });
@@ -40,10 +43,10 @@ for (const directory of packageDirectories) {
 }
 
 const registry = [];
-for (const directory of packageDirectories) {
+for (const directory of packageDirectoriesToPack) {
   run("bun", ["run", "build"], path.join(root, directory));
 }
-for (const directory of packageDirectories) {
+for (const directory of packageDirectoriesToPack) {
   const source = path.join(root, directory);
   const stage = path.join(stageDir, directory.replaceAll("/", "-"));
   await cp(source, stage, {
@@ -108,7 +111,7 @@ await writeFile(
   `${JSON.stringify(exposedRegistry, null, 2)}\n`,
 );
 console.log(
-  `Built ${registry.length} workflow package artifacts and exposed ${exposedRegistry.length} in ${outDir}`,
+  `Built ${registry.length} ${canonicalOnly ? "canonical Workflow" : "workflow"} package artifacts and exposed ${exposedRegistry.length} in ${outDir}`,
 );
 
 interface PackageManifest {

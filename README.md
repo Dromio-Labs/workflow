@@ -143,16 +143,24 @@ make check
 make release-rehearse
 ```
 
-`make check` builds the complete workflow-owned package closure, checks the
-public API, packs all nine packages in the release closure, installs them into a
-clean consumer, imports every supported public subpath, and compiles and runs a
-representative workflow. `make release-rehearse` additionally validates the
-dependency order and publication metadata without contacting npm.
+`make check` checks the public API and proves the locally built package in a
+clean consumer. It is a development check; it does not attest a coordinated
+release artifact set. The public release workflow publishes only
+`@dromio/workflow`; shared Dromio packages are versioned and published by their
+owning repository.
 
-The closure packages remain local build and clean-consumer inputs. The public
-release workflow publishes only `@dromio/workflow`; shared Dromio packages are
-versioned and published by their owning repository, so a Workflow release can
-never replace those packages with an older standalone copy.
+For a release rehearsal, set `WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR` to the
+Kernel #41 `package-release/artifacts` directory and run:
+
+```bash
+make release-rehearse
+```
+
+That command packs only the canonical Workflow artifact. It then verifies a
+clean regular and no-hoist consumer using the eight external Kernel foundation
+tarballs. Both the supplied manifest identities and the tarball bytes must
+match the recorded Kernel #41 SHA-1 and SHA-512 values, so a local same-version
+mirror cannot pass as a Kernel release artifact.
 
 ## Repository boundary
 

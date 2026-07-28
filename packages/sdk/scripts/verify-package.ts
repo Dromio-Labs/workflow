@@ -17,6 +17,7 @@ import {
   headlessWorkflowSource,
   representativeWorkflowSource,
 } from "./verify-package-workflow-fixtures.js";
+import { loadKernelFoundationArtifacts } from "../../../scripts/kernel-foundation-artifacts.js";
 
 type ExportTarget = {import: string; require?: string; types: string};
 
@@ -58,12 +59,18 @@ const localDependencyPackages = [
 const tempParent = process.env.WORKFLOW_SDK_PACKAGE_TEMP_PARENT || os.tmpdir();
 const tempRoot = await mkdtemp(path.join(tempParent, "workflow-sdk-package-"));
 const bunTempDir = path.join(tempRoot, "tmp");
-const releaseArtifactDir = process.env.WORKFLOW_RELEASE_ARTIFACT_DIR;
-const packageArtifactDir = releaseArtifactDir ? path.resolve(releaseArtifactDir) : tempRoot;
+const sdkArtifactDir = process.env.WORKFLOW_SDK_ARTIFACT_DIR;
+const kernelFoundationArtifactDir = process.env.WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR;
+if (Boolean(sdkArtifactDir) !== Boolean(kernelFoundationArtifactDir)) {
+  throw new Error(
+    "Set both WORKFLOW_SDK_ARTIFACT_DIR and WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR for the exact Kernel foundation proof.",
+  );
+}
+const usesKernelFoundationArtifacts = Boolean(sdkArtifactDir);
 await mkdir(bunTempDir, { recursive: true });
 
 try {
-  if (!releaseArtifactDir) {
+  if (!usesKernelFoundationArtifacts) {
     run("bun", ["run", "build"], protocolsDir);
     run("bun", ["pm", "pack", "--destination", tempRoot, "--ignore-scripts"], protocolsDir);
     run("bun", ["run", "build"], protocolDir);
@@ -76,31 +83,28 @@ try {
     }
     run("bun", ["pm", "pack", "--destination", tempRoot, "--ignore-scripts"]);
   }
-  const protocolsTarball = await findTarball(packageArtifactDir, "@dromio/protocols");
-  const protocolTarball = await findTarball(packageArtifactDir, "@dromio/workflow-room-protocol");
-  const workflowKernelTarball = await findTarball(packageArtifactDir, "@dromio/workflow-kernel");
-  const sdkTarball = await findTarball(packageArtifactDir, "@dromio/workflow");
-  const localDependencyTarballs = Object.fromEntries(
-    await Promise.all(localDependencyPackages.map(async (dependency) => [
-      dependency.name,
-      `file:${await findTarball(packageArtifactDir, dependency.name)}`,
-    ])),
-  );
-  const localPackageOverrides = {
-    "@dromio/protocols": `file:${protocolsTarball}`,
-    "@dromio/workflow-kernel": `file:${workflowKernelTarball}`,
-    "@dromio/workflow-room-protocol": `file:${protocolTarball}`,
-    ...localDependencyTarballs,
-  };
+  const canonicalArtifactDir = usesKernelFoundationArtifacts
+    ? path.resolve(sdkArtifactDir!)
+    : tempRoot;
+  const sdkTarball = await findTarball(canonicalArtifactDir, "@dromio/workflow");
+  const foundationTarballs = usesKernelFoundationArtifacts
+    ? Object.fromEntries(
+      [...(await loadKernelFoundationArtifacts(path.resolve(kernelFoundationArtifactDir!))).entries()]
+        .map(([name, artifact]) => [name, `file:${artifact.tarballPath}`]),
+    )
+    : Object.fromEntries(await Promise.all([
+      "@dromio/protocols",
+      "@dromio/workflow-room-protocol",
+      "@dromio/workflow-kernel",
+      ...localDependencyPackages.map((dependency) => dependency.name),
+    ].map(async (name) => [name, `file:${await findTarball(tempRoot, name)}`])));
+  const localPackageOverrides = foundationTarballs;
   const consumerDir = path.join(tempRoot, "consumer");
   await mkdir(consumerDir);
   await writeFile(path.join(consumerDir, "package.json"), JSON.stringify({
     dependencies: {
       "@dromio/workflow": `file:${sdkTarball}`,
-      "@dromio/protocols": `file:${protocolsTarball}`,
-      "@dromio/workflow-kernel": `file:${workflowKernelTarball}`,
-      "@dromio/workflow-room-protocol": `file:${protocolTarball}`,
-      ...localDependencyTarballs,
+      ...foundationTarballs,
     },
     name: "workflow-sdk-package-smoke",
     devDependencies: {

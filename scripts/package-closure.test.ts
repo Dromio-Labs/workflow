@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   canonicalPackageName,
+  kernelFoundationPackages,
   packageDirectories,
   selectCanonicalPublishTarget,
 } from "./package-closure.js";
@@ -20,17 +21,11 @@ describe("Workflow release ownership", () => {
       }),
     ));
 
-    expect(versions).toEqual({
-      "@dromio/chat-shell-ui": "0.2.0",
-      "@dromio/execution": "0.1.43",
-      "@dromio/protocols": "0.3.0",
-      "@dromio/thread-service": "0.3.0",
-      "@dromio/trigger": "0.1.45",
-      "@dromio/workflow": "0.2.7",
-      "@dromio/workflow-canvas-protocol": "0.1.4",
-      "@dromio/workflow-kernel": "0.1.8",
-      "@dromio/workflow-room-protocol": "0.1.46",
-    });
+    expect(kernelFoundationPackages).toHaveLength(8);
+    expect(versions).toEqual(Object.fromEntries([
+      ...kernelFoundationPackages.map(({ name, version }) => [name, version]),
+      [canonicalPackageName, "0.2.7"],
+    ]));
   });
 
   test("owns every external package imported by the canonical runtime", async () => {
