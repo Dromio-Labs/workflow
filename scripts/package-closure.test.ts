@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   canonicalPackageName,
+  kernelFoundationPackages,
   packageDirectories,
   selectCanonicalPublishTarget,
 } from "./package-closure.js";
@@ -10,7 +11,7 @@ import {
 } from "./package-payload.js";
 
 describe("Workflow release ownership", () => {
-  test("pins the canonical 0.2.6 package to the Kernel foundation closure", async () => {
+  test("pins the canonical 0.2.7 package to the Kernel foundation closure", async () => {
     const versions = Object.fromEntries(await Promise.all(
       packageDirectories.map(async (directory) => {
         const manifest = await Bun.file(
@@ -20,17 +21,11 @@ describe("Workflow release ownership", () => {
       }),
     ));
 
-    expect(versions).toEqual({
-      "@dromio/chat-shell-ui": "0.1.11",
-      "@dromio/execution": "0.1.43",
-      "@dromio/protocols": "0.2.1",
-      "@dromio/thread-service": "0.2.1",
-      "@dromio/trigger": "0.1.44",
-      "@dromio/workflow": "0.2.6",
-      "@dromio/workflow-canvas-protocol": "0.1.3",
-      "@dromio/workflow-kernel": "0.1.8",
-      "@dromio/workflow-room-protocol": "0.1.45",
-    });
+    expect(kernelFoundationPackages).toHaveLength(8);
+    expect(versions).toEqual(Object.fromEntries([
+      ...kernelFoundationPackages.map(({ name, version }) => [name, version]),
+      [canonicalPackageName, "0.2.7"],
+    ]));
   });
 
   test("owns every external package imported by the canonical runtime", async () => {
@@ -66,13 +61,13 @@ describe("Workflow release ownership", () => {
 
   test("publishes only the canonical Workflow package from the build closure", () => {
     const closure = [
-      { name: "@dromio/protocols", version: "0.2.1" },
-      { name: canonicalPackageName, version: "0.2.6" },
-      { name: "@dromio/thread-service", version: "0.2.1" },
+      { name: "@dromio/protocols", version: "0.3.0" },
+      { name: canonicalPackageName, version: "0.2.7" },
+      { name: "@dromio/thread-service", version: "0.3.0" },
     ];
 
     expect(selectCanonicalPublishTarget(closure)).toEqual([
-      { name: canonicalPackageName, version: "0.2.6" },
+      { name: canonicalPackageName, version: "0.2.7" },
     ]);
   });
 

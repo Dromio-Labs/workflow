@@ -34,7 +34,7 @@ describe("workbench starter generator", () => {
       expect(result.files).not.toContain("catalog/echo/index.ts");
 
       const packageJson = JSON.parse(await readFile(path.join(targetDir, "package.json"), "utf8"));
-      expect(packageJson.dependencies["@dromio/workflow"]).toBe("^0.1.3");
+      expect(packageJson.dependencies["@dromio/workflow"]).toBe("^0.2.7");
       expect(packageJson.scripts.check).toBe(
         "tsc --noEmit && dromio check && dromio validate --all && dromio compile --all",
       );

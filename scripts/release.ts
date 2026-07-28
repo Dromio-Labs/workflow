@@ -6,7 +6,6 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   canonicalPackageName,
-  packageDirectories,
   selectCanonicalPublishTarget,
 } from "./package-closure.js";
 
@@ -42,19 +41,17 @@ if (action === "verify-next") {
 
 if (action !== "rehearse") requireConfirmation(action);
 
-run("bun", ["scripts/build-local-registry.ts"], root);
+const foundationArtifactDir = kernelFoundationArtifactDir();
+run("bun", ["scripts/build-local-registry.ts", "--canonical-only"], root);
 const artifactDir = path.join(root, ".tmp", "package-release", "artifacts");
 const manifest = JSON.parse(
   await readFile(path.join(artifactDir, "package-registry-manifest.json"), "utf8"),
 ) as Manifest[];
-const ordered = validateRelease(manifest);
-const publishTargets = selectCanonicalPublishTarget(ordered);
+const publishTargets = validateCanonicalRelease(manifest);
+verifyCanonicalAgainstKernelFoundation(artifactDir, foundationArtifactDir);
 
 if (action === "rehearse") {
-  run("bun", ["run", "--cwd", "packages/sdk", "verify:package"], root, {
-    WORKFLOW_RELEASE_ARTIFACT_DIR: path.join(artifactDir, "packages"),
-  });
-  console.log(`Release rehearsal passed for ${ordered.length} packages: ${ordered.map(item => item.name).join(", ")}`);
+  console.log(`Release rehearsal passed for canonical ${canonicalPackageName} against the exact eight-package Kernel foundation.`);
   process.exit(0);
 }
 
@@ -126,44 +123,39 @@ for (const item of publishTargets) {
 }
 await verifyPublicPackage(`${canonicalPackageName}@latest`, publishTargets[0]!.version);
 
-function validateRelease(items: Manifest[]): Manifest[] {
-  if (items.length !== packageDirectories.length) {
-    throw new Error(`Expected ${packageDirectories.length} package artifacts, found ${items.length}.`);
+function validateCanonicalRelease(items: Manifest[]): readonly Manifest[] {
+  const publishTargets = selectCanonicalPublishTarget(items);
+  if (items.length !== 1 || publishTargets.length !== 1) {
+    throw new Error(`Expected one canonical ${canonicalPackageName} artifact, found ${items.length}.`);
   }
-  const byName = new Map(items.map(item => [item.name, item]));
-  if (byName.size !== packageDirectories.length || !byName.has(canonicalPackageName)) {
-    throw new Error("The release manifest must contain each package exactly once, including @dromio/workflow.");
+  const item = publishTargets[0]!;
+  if (item.packageJson.private === true || item.packageJson.publishConfig?.access !== "public") {
+    throw new Error(`${item.name} is not configured for public publication.`);
   }
-  for (const item of items) {
-    if (item.packageJson.private === true || item.packageJson.publishConfig?.access !== "public") {
-      throw new Error(`${item.name} is not configured for public publication.`);
-    }
-    if (item.packageJson.repository?.url !== "https://github.com/Dromio-Labs/workflow.git") {
-      throw new Error(`${item.name} does not point at the standalone public repository.`);
-    }
-    for (const [dependency, specifier] of Object.entries(item.packageJson.dependencies ?? {})) {
-      const local = byName.get(dependency);
-      if (local && specifier !== local.version) {
-        throw new Error(`${item.name} must depend on exact release version ${dependency}@${local.version}, got ${specifier}.`);
-      }
-    }
+  if (item.packageJson.repository?.url !== "https://github.com/Dromio-Labs/workflow.git") {
+    throw new Error(`${item.name} does not point at the standalone public repository.`);
   }
-  const ordered: Manifest[] = [];
-  const pending = new Map(byName);
-  while (pending.size) {
-    const ready = [...pending.values()].filter(item =>
-      Object.keys(item.packageJson.dependencies ?? {}).every(name => !pending.has(name))
-    ).sort((left, right) => left.name.localeCompare(right.name));
-    if (!ready.length) throw new Error("The package release closure contains an internal dependency cycle.");
-    for (const item of ready) {
-      ordered.push(item);
-      pending.delete(item.name);
-    }
+  return publishTargets;
+}
+
+function kernelFoundationArtifactDir(): string {
+  const supplied = process.env.WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR;
+  if (!supplied) {
+    throw new Error(
+      "Set WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR to the Kernel #41 package-release artifacts directory before rehearsing or publishing Workflow.",
+    );
   }
-  if (ordered.at(-1)?.name !== canonicalPackageName) {
-    throw new Error("@dromio/workflow must be published after its internal dependency closure.");
-  }
-  return ordered;
+  return path.resolve(supplied);
+}
+
+function verifyCanonicalAgainstKernelFoundation(
+  canonicalArtifacts: string,
+  foundationArtifacts: string,
+): void {
+  run("bun", ["run", "--cwd", "packages/sdk", "verify:package"], root, {
+    WORKFLOW_KERNEL_FOUNDATION_ARTIFACT_DIR: foundationArtifacts,
+    WORKFLOW_SDK_ARTIFACT_DIR: path.join(canonicalArtifacts, "packages"),
+  });
 }
 
 function requireConfirmation(expected: Exclude<Action, "rehearse" | "verify-next">): void {

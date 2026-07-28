@@ -28,7 +28,7 @@ export function packageJson(context: WorkbenchStarterTemplateContext) {
       tui: "bun run bin/tui.ts",
     },
     dependencies: {
-      "@dromio/workflow": "^0.1.3",
+      "@dromio/workflow": "^0.2.7",
       zod: "^4.1.12",
     },
     devDependencies: {

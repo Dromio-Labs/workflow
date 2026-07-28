@@ -6,7 +6,7 @@ help:
 	@printf "  make build           Build @dromio/workflow and its package closure\n"
 	@printf "  make check           Run types, tests, build, and clean-consumer package proof\n"
 	@printf "  make local-registry  Build local package-registry artifacts for dro\n"
-	@printf "  make release-rehearse  Build and verify the nine-package release without publishing\n"
+	@printf "  make release-rehearse  Verify canonical Workflow against the exact Kernel foundation artifacts\n"
 	@printf "  make release-verify-next  Verify the public @dromio/workflow@next package\n"
 	@printf "  make release-repair-next-tags  Remove unintended first-release latest tags\n"
 
