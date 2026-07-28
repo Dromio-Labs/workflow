@@ -25,10 +25,10 @@ export const kernelFoundationPackages = [
     version: "0.2.0",
   },
   {
-    integrity: "sha512-QagpAI37h8Tf8b3yd0oHkwQvlc+lNuhb1MRKy8M3iNUD3d9z3aMSoHo31HW1M8MdrqKrLs4i+lcalRezsMPf6A==",
+    integrity: "sha512-+XJwBtoBxIhUehlyv2ETXUneeqWsfIXC8QixaTJrHemVmDa9sjuTQGAuozFYvyrfqvubKnwFr1GUgAY6hqZe+w==",
     name: "@dromio/execution",
-    shasum: "d844a7399220aa7b1ef99ba93ee0255e1dc3fd2b",
-    version: "0.1.43",
+    shasum: "6cdf70c692bb7eac13b7660f98873c77baa6d4a8",
+    version: "0.1.44",
   },
   {
     integrity: "sha512-1r1f7WyFzSxTjB7vyt1ARakUcqHZkVN+PKgQsqdR5i1yR4CTkjeUcgMRCQIZ0Dk9+u4VZvNEur5i/QoahzfOew==",
@@ -43,9 +43,9 @@ export const kernelFoundationPackages = [
     version: "0.3.0",
   },
   {
-    integrity: "sha512-m+xUXYtAM5j6EQhWcoxKPjwW9EE+VKzXVmb8Cqu8KXLVDkC9cUHnos2qFoq76Rl3nrmehNruZyvyPM+XwssSdg==",
+    integrity: "sha512-1T8Tp00KPOmA7SUpYz+KLwlz8lfTx//qU6DrChohwr9O/cHU27TzzPEC48VWh5TB7diqH4GJB107UzENngduYw==",
     name: "@dromio/trigger",
-    shasum: "4b3bb4e048283409e32ec0dc6dcd956e0db7176e",
+    shasum: "0ec0aab51ce5aa82ec244f18fe97d4dc1cca4c20",
     version: "0.1.45",
   },
   {
