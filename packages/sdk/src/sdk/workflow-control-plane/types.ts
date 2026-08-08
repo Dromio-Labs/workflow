@@ -245,6 +245,16 @@ export type WorkflowRunFilter = {
 
 export type StoredWorkflowRunSnapshot = WorkflowAppRunSnapshot;
 
+export interface RuntimeStorePageInput {
+  readonly limit: number;
+  readonly offset?: number;
+}
+
+export interface RuntimeStorePage<Item> {
+  readonly hasMore: boolean;
+  readonly items: Item[];
+}
+
 export type PutWorkflowRunResult = {
   /** True when the submitted snapshot is current (newly stored or already identical). */
   accepted: boolean;
@@ -468,7 +478,15 @@ export type WorkflowRuntimeStore = {
   listDatasets?(): Promise<DatasetRegistryEntry[]> | DatasetRegistryEntry[];
   listArtifactRefs?(runId: string): Promise<WorkflowRunArtifactRef[]> | WorkflowRunArtifactRef[];
   listTriggerJobs(filter?: TriggerJobFilter): Promise<TriggerJobSnapshot[]> | TriggerJobSnapshot[];
+  listTriggerJobsPage?(
+    filter: TriggerJobFilter | undefined,
+    page: RuntimeStorePageInput,
+  ): Promise<RuntimeStorePage<TriggerJobSnapshot>> | RuntimeStorePage<TriggerJobSnapshot>;
   listWorkflowRuns(filter?: WorkflowRunFilter): Promise<StoredWorkflowRunSnapshot[]> | StoredWorkflowRunSnapshot[];
+  listWorkflowRunsPage?(
+    filter: WorkflowRunFilter | undefined,
+    page: RuntimeStorePageInput,
+  ): Promise<RuntimeStorePage<StoredWorkflowRunSnapshot>> | RuntimeStorePage<StoredWorkflowRunSnapshot>;
   markTriggerJobRunning(input: {
     jobId: string;
     leaseId?: string;
