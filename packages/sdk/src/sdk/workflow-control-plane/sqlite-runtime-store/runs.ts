@@ -7,6 +7,8 @@ import {
   workflowAppRunSnapshotRevision,
 } from "../../client/interactions/workflow-app/run-revision.js";
 import type {
+  RuntimeStorePage,
+  RuntimeStorePageInput,
   StoredWorkflowRunSnapshot,
   WorkflowRunFilter,
 } from "../types.js";
@@ -63,6 +65,42 @@ export function listWorkflowRuns(
   return rows.map((row) =>
     attachWorkflowArtifactRefs(database, JSON.parse(row.snapshot_json) as StoredWorkflowRunSnapshot)
   );
+}
+
+export function listWorkflowRunsPage(
+  database: Database,
+  filter: WorkflowRunFilter = {},
+  page: RuntimeStorePageInput,
+): RuntimeStorePage<StoredWorkflowRunSnapshot> {
+  const clauses: string[] = [];
+  const params: Array<string | number | null> = [];
+  if (filter.workflowId) {
+    clauses.push("workflow_id = ?");
+    params.push(filter.workflowId);
+  }
+  if (filter.originType) {
+    clauses.push("origin_type = ?");
+    params.push(filter.originType);
+  }
+  const limit = boundedPageInteger(page.limit, "limit", 1);
+  const offset = boundedPageInteger(page.offset ?? 0, "offset", 0);
+  const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
+  const rows = database.query(
+    `select snapshot_json from workflow_runs ${where} order by updated_at desc limit ? offset ?`,
+  ).all(...params, limit + 1, offset) as Array<{ snapshot_json: string }>;
+  return {
+    hasMore: rows.length > limit,
+    items: rows.slice(0, limit).map((row) =>
+      attachWorkflowArtifactRefs(database, JSON.parse(row.snapshot_json) as StoredWorkflowRunSnapshot)
+    ),
+  };
+}
+
+function boundedPageInteger(value: number, name: string, minimum: number): number {
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new Error(`${name} must be a safe integer greater than or equal to ${minimum}.`);
+  }
+  return value;
 }
 
 export function putWorkflowRun(database: Database, snapshot: StoredWorkflowRunSnapshot) {

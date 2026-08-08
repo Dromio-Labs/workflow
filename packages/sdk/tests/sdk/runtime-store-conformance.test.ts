@@ -13,6 +13,45 @@ import {
 import { createSqliteWorkflowRuntimeStore } from "@dromio/workflow/workflow-control-plane";
 
 describe("workflow runtime store capability conformance", () => {
+  it("pages SQLite jobs and runs without materializing the full result set", async () => {
+    const store = createSqliteWorkflowRuntimeStore(":memory:");
+    for (let index = 0; index < 101; index += 1) {
+      const stamp = new Date(Date.UTC(2026, 0, 1, 0, 0, index)).toISOString();
+      await store.enqueueTriggerJob({
+        availableAt: stamp,
+        createdAt: stamp,
+        id: `job-${String(index).padStart(3, "0")}`,
+        kind: "trigger",
+        maxAttempts: 3,
+        occurrenceId: `occurrence-${index}`,
+        payload: { index },
+        status: "queued",
+        triggerId: "trigger-page",
+        updatedAt: stamp,
+        workflowId: "workflow-page",
+      });
+      await store.putWorkflowRun({
+        artifacts: [],
+        events: [],
+        input: `run ${index}`,
+        pendingQuestions: [],
+        runId: `run-${String(index).padStart(3, "0")}`,
+        status: "completed",
+        workflowId: "workflow-page",
+      });
+    }
+
+    const jobs = await store.listTriggerJobsPage?.(undefined, { limit: 5, offset: 0 });
+    const runs = await store.listWorkflowRunsPage?.(undefined, { limit: 5, offset: 0 });
+
+    expect(jobs).toMatchObject({ hasMore: true });
+    expect(jobs?.items.map((job) => job.id)).toEqual([
+      "job-100", "job-099", "job-098", "job-097", "job-096",
+    ]);
+    expect(runs).toMatchObject({ hasMore: true });
+    expect(runs?.items).toHaveLength(5);
+  });
+
   it("runs the shared dataset and artifact contract against SQLite", async () => {
     const directory = await mkdtemp(join(tmpdir(), "dromio-runtime-conformance-"));
     try {

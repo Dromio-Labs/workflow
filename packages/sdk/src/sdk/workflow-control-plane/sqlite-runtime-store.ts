@@ -42,6 +42,7 @@ import {
   appendWorkflowRunEvents as appendSqliteWorkflowRunEvents,
   getWorkflowRun as getSqliteWorkflowRun,
   listWorkflowRuns as listSqliteWorkflowRuns,
+  listWorkflowRunsPage as listSqliteWorkflowRunsPage,
   putWorkflowRun as putSqliteWorkflowRun,
 } from "./sqlite-runtime-store/runs.js";
 
@@ -339,8 +340,42 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       const rows = database.query(`select * from trigger_jobs ${where} order by created_at desc`).all(...params) as TriggerJobRow[];
       return rows.map(rowToTriggerJob);
     },
+    listTriggerJobsPage(filter = {}, page) {
+      const clauses: string[] = [];
+      const params: Array<string | number | null> = [];
+      if (filter.workflowId) {
+        clauses.push("workflow_id = ?");
+        params.push(filter.workflowId);
+      }
+      if (filter.triggerId) {
+        clauses.push("trigger_id = ?");
+        params.push(filter.triggerId);
+      }
+      if (filter.status) {
+        const statuses = Array.isArray(filter.status) ? filter.status : [filter.status];
+        clauses.push(`status in (${statuses.map(() => "?").join(", ")})`);
+        params.push(...statuses);
+      }
+      if (filter.kind) {
+        clauses.push("kind = ?");
+        params.push(filter.kind);
+      }
+      const limit = boundedPageInteger(page.limit, "limit", 1);
+      const offset = boundedPageInteger(page.offset ?? 0, "offset", 0);
+      const where = clauses.length ? `where ${clauses.join(" and ")}` : "";
+      const rows = database.query(
+        `select * from trigger_jobs ${where} order by created_at desc limit ? offset ?`,
+      ).all(...params, limit + 1, offset) as TriggerJobRow[];
+      return {
+        hasMore: rows.length > limit,
+        items: rows.slice(0, limit).map(rowToTriggerJob),
+      };
+    },
     listWorkflowRuns(filter = {}) {
       return listSqliteWorkflowRuns(database, filter);
+    },
+    listWorkflowRunsPage(filter = {}, page) {
+      return listSqliteWorkflowRunsPage(database, filter, page);
     },
     markTriggerJobRunning(input) {
       const current = requireTriggerJob(database, input.jobId);
@@ -464,4 +499,11 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       "select * from trigger_jobs where trigger_id = ? and occurrence_id = ?",
     ).get(input.triggerId, input.occurrenceId) as TriggerJobRow | null;
   }
+}
+
+function boundedPageInteger(value: number, name: string, minimum: number): number {
+  if (!Number.isSafeInteger(value) || value < minimum) {
+    throw new Error(`${name} must be a safe integer greater than or equal to ${minimum}.`);
+  }
+  return value;
 }
