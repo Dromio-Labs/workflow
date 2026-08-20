@@ -70,6 +70,22 @@ export function requireTriggerJob(database: Database, id: string): TriggerJobSna
   return rowToTriggerJob(row);
 }
 
+export function findTriggerJobByUniqueKey(database: Database, input: {
+  idempotencyKey?: string;
+  occurrenceId: string;
+  triggerId: string;
+}): TriggerJobRow | null {
+  if (input.idempotencyKey) {
+    const existing = database.query(
+      "select * from trigger_jobs where trigger_id = ? and idempotency_key = ?",
+    ).get(input.triggerId, input.idempotencyKey) as TriggerJobRow | null;
+    if (existing) return existing;
+  }
+  return database.query(
+    "select * from trigger_jobs where trigger_id = ? and occurrence_id = ?",
+  ).get(input.triggerId, input.occurrenceId) as TriggerJobRow | null;
+}
+
 export function rowToTriggerJob(row: TriggerJobRow): TriggerJobSnapshot {
   return {
     attempts: Number(row.attempts),

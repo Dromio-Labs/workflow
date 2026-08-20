@@ -13,6 +13,36 @@ import {
 import { createSqliteWorkflowRuntimeStore } from "@dromio/workflow/workflow-control-plane";
 
 describe("workflow runtime store capability conformance", () => {
+  it("returns an existing scheduled occurrence without replacing its payload", async () => {
+    const store = createSqliteWorkflowRuntimeStore(":memory:");
+    const input = {
+      availableAt: "2026-01-01T00:15:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      id: "scheduled-job",
+      idempotencyKey: "sched:rank-feed:2026-01-01T00:15:00.000Z",
+      kind: "trigger" as const,
+      maxAttempts: 3,
+      occurrenceId: "2026-01-01T00:15:00.000Z",
+      payload: { input: {}, source: "first" },
+      status: "queued" as const,
+      triggerId: "rank-feed.schedule",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      workflowId: "rank-feed",
+    };
+
+    expect((await store.enqueueTriggerJob(input)).created).toBe(true);
+    const repeated = await store.enqueueTriggerJob({
+      ...input,
+      id: "ignored-job",
+      payload: { input: {}, source: "repeated-poll" },
+    });
+
+    expect(repeated).toMatchObject({
+      created: false,
+      job: { id: "scheduled-job", payload: { input: {}, source: "first" } },
+    });
+  });
+
   it("pages SQLite jobs and runs without materializing the full result set", async () => {
     const store = createSqliteWorkflowRuntimeStore(":memory:");
     for (let index = 0; index < 101; index += 1) {
@@ -24,7 +54,7 @@ describe("workflow runtime store capability conformance", () => {
         kind: "trigger",
         maxAttempts: 3,
         occurrenceId: `occurrence-${index}`,
-        payload: { index },
+        payload: { input: { index }, source: "test" },
         status: "queued",
         triggerId: "trigger-page",
         updatedAt: stamp,

@@ -23,6 +23,7 @@ import {
   upsertDatasetRows,
 } from "./sqlite-runtime-store/datasets.js";
 import {
+  findTriggerJobByUniqueKey,
   isSqliteBusy,
   openRuntimeDb,
   requireTriggerJob,
@@ -187,6 +188,13 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
       };
     },
     enqueueTriggerJob(input) {
+      const existing = findTriggerJobByUniqueKey(database, input);
+      if (existing) {
+        return {
+          created: false,
+          job: rowToTriggerJob(existing),
+        };
+      }
       const result = database.run(
         `insert or ignore into trigger_jobs (
           id, trigger_id, workflow_id, occurrence_id, idempotency_key, kind, status,
@@ -210,11 +218,11 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
         ],
       );
       if (result.changes === 0) {
-        const existing = existingTriggerJobByUniqueKey(input);
-        if (existing) {
+        const raced = findTriggerJobByUniqueKey(database, input);
+        if (raced) {
           return {
             created: false,
-            job: rowToTriggerJob(existing),
+            job: rowToTriggerJob(raced),
           };
         }
         throw new Error("Trigger job insert was ignored without a matching idempotency or occurrence key.");
@@ -486,19 +494,6 @@ export function createSqliteWorkflowRuntimeStore(filePath: string): WorkflowRunt
     },
   };
 
-  function existingTriggerJobByUniqueKey(
-    input: Parameters<WorkflowRuntimeStore["enqueueTriggerJob"]>[0],
-  ): TriggerJobRow | null {
-    if (input.idempotencyKey) {
-      const existing = database.query(
-        "select * from trigger_jobs where trigger_id = ? and idempotency_key = ?",
-      ).get(input.triggerId, input.idempotencyKey) as TriggerJobRow | null;
-      if (existing) return existing;
-    }
-    return database.query(
-      "select * from trigger_jobs where trigger_id = ? and occurrence_id = ?",
-    ).get(input.triggerId, input.occurrenceId) as TriggerJobRow | null;
-  }
 }
 
 function boundedPageInteger(value: number, name: string, minimum: number): number {
